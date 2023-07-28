@@ -42,7 +42,7 @@ class SamplingParam(TypedDict):
 
 class OutputType(TypedDict):
     sentences: List[str]  # output sentences
-    tokens: List[List[str]]  # output sentences borken into tokens
+    tokens: List[List[str]]  # output sentences broken into tokens
     logprob: List[List[float]]  # log prob of generated tokens
     full_logprob: List[List[float]]  # log prob of all the tokens in the vocab
     token_ids: List[List[int]]  # output sentence token ids
@@ -94,7 +94,7 @@ class TextGeneration:
         Returns:
             OutputType: It generates the output in a dictionary type. It has the following keys:
                 sentences: List[str], output sentences
-                tokens: List[List[str]], output sentences borken into tokens
+                tokens: List[List[str]], output sentences broken into tokens
                 logprob: List[List[float]],  log prob of generated tokens
                 full_logprob: List[List[float]], log prob of all the tokens in the vocab
                 token_ids: List[List[int]], output sentence token ids

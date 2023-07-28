@@ -580,7 +580,7 @@ def generate(
     Returns:
         OutputType: It generates the output in a dictionary type. It has the following keys:
             sentences: List[str], output sentences
-            tokens: List[List[str]], output sentences borken into tokens
+            tokens: List[List[str]], output sentences broken into tokens
             logprob: List[Tensor], log prob of generated tokens
             full_logprob: List[Tensor], log prob of all the tokens in the vocab
             token_ids: List[Tensor], output sentence token ids

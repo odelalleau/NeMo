@@ -42,7 +42,7 @@ class _VocabParallelCrossEntropy(torch.autograd.Function):
         # Subtract the maximum value.
         vocab_parallel_logits = vocab_parallel_logits - logits_max.unsqueeze(dim=-1)
 
-        # Get the partition's vocab indecies
+        # Get the partition's vocab indices.
         get_vocab_range = VocabUtility.vocab_range_from_per_partition_vocab_size
         partition_vocab_size = vocab_parallel_logits.size()[-1]
         rank = get_tensor_model_parallel_rank()
