@@ -95,7 +95,7 @@ class NeMoModelCheckpoint(ModelCheckpoint):
                 checkpoint = uninject_model_parallel_rank(checkpoint)
             checkpoint = str(checkpoint)
             # second case is for distributed checkpoints, since they are a directory there's no extension
-            if checkpoint[-10:] == '-last.ckpt' or checkpoint[-5:] == '-last':
+            if checkpoint.endswith('-last.ckpt') or checkpoint.endswith('-last'):
                 continue
             index = checkpoint.find(self.monitor) + len(self.monitor) + 1  # Find monitor in str + 1 for '='
             if index != len(self.monitor):
@@ -204,7 +204,7 @@ class NeMoModelCheckpoint(ModelCheckpoint):
         if self.save_best_model:
             # wait for all processes
             trainer.strategy.barrier("SaveBestCheckpointConnector.resume_end")
-            if self.best_model_path == "":
+            if not self.best_model_path:
                 logging.warning(
                     f"{self} was told to save the best checkpoint at the end of training, but no saved checkpoints "
                     "were found. Saving latest model instead."

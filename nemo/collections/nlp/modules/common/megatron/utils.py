@@ -233,8 +233,7 @@ def get_ltor_masks_and_position_ids(
 
             # Loop through EOD indicies:
             prev_index = 0
-            for j in range(eod_index.size()[0]):
-                i = eod_index[j]
+            for i in eod_index:
                 # Mask attention loss.
                 if reset_attention_mask:
                     attention_mask[b, 0, (i + 1) :, : (i + 1)] = 0
