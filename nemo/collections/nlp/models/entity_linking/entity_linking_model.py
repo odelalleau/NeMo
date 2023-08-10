@@ -136,7 +136,7 @@ class EntityLinkingModel(NLPModel, Exportable):
     def setup_training_data(self, train_data_config: Optional[DictConfig]):
         if not train_data_config or not train_data_config.data_file:
             logging.info(
-                f"Dataloader config or file_path or processed data path for the train dataset is missing, \
+                "Dataloader config or file_path or processed data path for the train dataset is missing, \
                         so no data loader for train is created!"
             )
 
@@ -148,7 +148,7 @@ class EntityLinkingModel(NLPModel, Exportable):
     def setup_validation_data(self, val_data_config: Optional[DictConfig]):
         if not val_data_config or not val_data_config.data_file:
             logging.info(
-                f"Dataloader config or file_path or processed data path for the val dataset is missing, \
+                "Dataloader config or file_path or processed data path for the val dataset is missing, \
                         so no data loader for validation is created!"
             )
 
