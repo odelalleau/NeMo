@@ -1422,7 +1422,7 @@ class ParallelTransformer(MegatronModule):
         retrieved_emb=None,  # tensor of retrieved embedding of shape [b, k, r, n, d]
         self_attention_relative_position_bias=None,
         cross_attention_relative_position_bias=None,
-        checkpoint_activations_all_layers=None,
+        checkpoint_activations_all_layers=False,
     ):
         # Checks.
         if inference_max_sequence_len:
@@ -1520,10 +1520,7 @@ class ParallelTransformer(MegatronModule):
                         if self.activations_checkpoint_granularity == 'selective':
                             # When pipeline-parallel size > 1 and 'num_micro_batches_with_partial_activation_checkpoints' = int,
                             # pipeline scheduling can force to checkpoint all layers or partial layers in a micro-batch.
-                            if (
-                                checkpoint_activations_all_layers == True
-                                or self.activations_checkpoint_method == 'uniform'
-                            ):
+                            if checkpoint_activations_all_layers or self.activations_checkpoint_method == 'uniform':
                                 checkpoint_core_attention = True
                             elif self.activations_checkpoint_method == 'block':
                                 activations_checkpoint_num_layers = self.activations_checkpoint_num_layers

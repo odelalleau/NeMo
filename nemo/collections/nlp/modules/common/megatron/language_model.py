@@ -754,7 +754,7 @@ class TransformerLanguageModel(MegatronModule, adapter_mixins.AdapterModuleMixin
         encoder_input=None,
         set_inference_key_value_memory=False,
         inference_max_sequence_len=None,
-        checkpoint_activations_all_layers=None,
+        checkpoint_activations_all_layers=False,
     ):
         # Embeddings.
         if self.pre_process and encoder_input is None:

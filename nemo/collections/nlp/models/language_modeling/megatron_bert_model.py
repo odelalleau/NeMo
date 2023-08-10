@@ -204,7 +204,7 @@ class MegatronBertModel(MegatronBaseModel):
             )
 
     def get_forward_output_and_loss_func(self):
-        def fwd_output_and_loss_func(dataloader_iter, model, checkpoint_activations_all_layers=None):
+        def fwd_output_and_loss_func(dataloader_iter, model, checkpoint_activations_all_layers=False):
             if parallel_state.get_pipeline_model_parallel_world_size() == 1:
                 batch = next(dataloader_iter)
                 tokens, types, sentence_order, loss_mask, lm_labels, padding_mask = (
@@ -279,7 +279,7 @@ class MegatronBertModel(MegatronBaseModel):
         attention_mask,
         token_type_ids,
         lm_labels=None,
-        checkpoint_activations_all_layers=None,
+        checkpoint_activations_all_layers=False,
         model=None,
     ):
         if model is None:

@@ -875,7 +875,7 @@ class MegatronGPTModel(MegatronBaseModel, TextGeneration):
         return batch
 
     def get_forward_output_and_loss_func(self, validation_step=False):
-        def fwd_output_and_loss_func(dataloader_iter, model, checkpoint_activations_all_layers=None):
+        def fwd_output_and_loss_func(dataloader_iter, model, checkpoint_activations_all_layers=False):
 
             # Get data batch
             batch = next(dataloader_iter)

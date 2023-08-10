@@ -269,7 +269,7 @@ class BertModel(MegatronModule):
         attention_mask,
         token_type_ids=None,
         lm_labels=None,
-        checkpoint_activations_all_layers=None,
+        checkpoint_activations_all_layers=False,
     ):
 
         extended_attention_mask = bert_extended_attention_mask(attention_mask)
