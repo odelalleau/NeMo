@@ -1499,7 +1499,7 @@ class ParallelTransformer(MegatronModule):
                             self.inference_params.sequence_len_offset = 0
                             self.inference_current_sequence_len = 0
 
-                        if self.inference_params != None:
+                        if self.inference_params is not None:
                             self.inference_params.sequence_len_offset = self.inference_current_sequence_len
 
                     if self.return_select_layer < 0:

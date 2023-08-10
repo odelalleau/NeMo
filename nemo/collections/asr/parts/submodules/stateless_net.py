@@ -84,7 +84,7 @@ class StatelessNet(torch.nn.Module):
 
         [B, U] = y.shape
         appended_y = y
-        if state != None:
+        if state is not None:
             appended_y = torch.concat([state[0], y], axis=1)
             context_size = appended_y.shape[1]
 

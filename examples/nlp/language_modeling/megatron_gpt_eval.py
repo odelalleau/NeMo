@@ -158,7 +158,7 @@ class RequestDataSet(Dataset):
 def remove_padded_prompts(response, nb_paddings):
     result = {}
     for k, v in response.items():
-        if v != None and (type(v) is list or type(v) is torch.Tensor):
+        if v is not None and (type(v) is list or type(v) is torch.Tensor):
             v = v[:-nb_paddings]
         result[k] = v
     return result

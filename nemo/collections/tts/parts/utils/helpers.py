@@ -426,7 +426,7 @@ def plot_alignment_to_numpy(alignment, title='', info=None, phoneme_seq=None, vm
     plt.ylabel('Encoder timestep')
     plt.tight_layout()
 
-    if phoneme_seq != None:
+    if phoneme_seq is not None:
         # for debugging of phonemes and durs in maps. Not used by def in training code
         ax.set_yticks(np.arange(len(phoneme_seq)))
         ax.set_yticklabels(phoneme_seq)

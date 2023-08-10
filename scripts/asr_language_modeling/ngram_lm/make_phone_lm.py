@@ -798,19 +798,19 @@ class NgramCounts(object):
             # print fake n-gram for <s>, for its backoff prob.
             if hist_len == 0:
                 backoff_prob = self.GetProb((self.bos_symbol,), self.backoff_symbol)
-                if backoff_prob != None:
+                if backoff_prob is not None:
                     print("-99\t<s>\t{0}".format("%.5f" % math.log10(backoff_prob)))
 
             for hist in self.counts[hist_len].keys():
                 for word in self.counts[hist_len][hist].word_to_count.keys():
                     if word != self.backoff_symbol:
                         prob = self.GetProb(hist, word)
-                        assert prob != None and prob > 0
+                        assert prob is not None and prob > 0
                         backoff_prob = self.GetProb((hist) + (word,), self.backoff_symbol)
                         line = "{0}\t{1}".format(
                             "%.5f" % math.log10(prob), " ".join(self.IntToString(x) for x in hist + (word,)),
                         )
-                        if backoff_prob != None:
+                        if backoff_prob is not None:
                             line += "\t{0}".format("%.5f" % math.log10(backoff_prob))
                         print(line)
             print("")

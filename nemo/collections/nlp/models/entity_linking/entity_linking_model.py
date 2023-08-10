@@ -127,7 +127,7 @@ class EntityLinkingModel(NLPModel, Exportable):
         """
         if self.validation_step_outputs:
             avg_loss = torch.stack(
-                [x["val_loss"] for x in self.validation_step_outputs if x["val_loss"] != None]
+                [x["val_loss"] for x in self.validation_step_outputs if x["val_loss"] is not None]
             ).mean()
             self.log(f"val_loss", avg_loss, prog_bar=True)
             self.validation_step_outputs.clear()  # free memory
