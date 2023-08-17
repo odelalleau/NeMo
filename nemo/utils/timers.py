@@ -95,7 +95,7 @@ class NamedTimer(object):
         if self._sync_cuda and torch.cuda.is_initialized():
             torch.cuda.synchronize()
 
-        timer_data["start"] = time.time()
+        timer_data["start"] = time.perf_counter()
 
         self.timers[name] = timer_data
 
@@ -115,7 +115,7 @@ class NamedTimer(object):
             torch.cuda.synchronize()
 
         # compute dt and make timer inactive
-        dt = time.time() - timer_data.pop("start")
+        dt = time.perf_counter() - timer_data.pop("start")
 
         # store dt
         timer_data["dt"] = timer_data.get("dt", []) + [dt]
