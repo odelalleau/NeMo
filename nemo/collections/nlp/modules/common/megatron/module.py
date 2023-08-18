@@ -193,7 +193,7 @@ class MegatronModule(torch.nn.Module):
     def state_dict_for_save_checkpoint(self, destination=None, prefix='', keep_vars=False):
         """Use this function to override the state dict for
         saving checkpoints."""
-        return self.state_dict(destination, prefix, keep_vars)
+        return self.state_dict(destination=destination, prefix=prefix, keep_vars=keep_vars)
 
     def sync_initial_encoder_relative_position_embeddings(self):
         # Ensure that all encoder RPE stages have the same weights.
@@ -299,7 +299,7 @@ class Float16Module(MegatronModule):
         return outputs
 
     def state_dict(self, destination=None, prefix='', keep_vars=False):
-        return self.module.state_dict(destination, prefix, keep_vars)
+        return self.module.state_dict(destination=destination, prefix=prefix, keep_vars=keep_vars)
 
     def state_dict_for_save_checkpoint(self, destination=None, prefix='', keep_vars=False):
         return self.module.state_dict_for_save_checkpoint(destination, prefix, keep_vars)

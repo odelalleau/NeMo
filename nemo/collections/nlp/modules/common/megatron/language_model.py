@@ -382,7 +382,9 @@ class Embedding(MegatronModule):
         """For easy load."""
 
         state_dict_ = {}
-        state_dict_[self._word_embeddings_key] = self.word_embeddings.state_dict(destination, prefix, keep_vars)
+        state_dict_[self._word_embeddings_key] = self.word_embeddings.state_dict(
+            destination=destination, prefix=prefix, keep_vars=keep_vars
+        )
         if self.position_embedding_type == 'learned_absolute':
             state_dict_[self._position_embeddings_key] = self.position_embeddings.state_dict(
                 destination, prefix, keep_vars

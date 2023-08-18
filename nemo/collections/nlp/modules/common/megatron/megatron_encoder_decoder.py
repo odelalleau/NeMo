@@ -239,7 +239,9 @@ class MegatronTransformerEncoderDecoderModule(MegatronModule):
         state_dict_[self._decoder_key] = self.decoder.state_dict_for_save_checkpoint(destination, prefix, keep_vars)
 
         if self.hiddens_module is not None:
-            state_dict_[self._hiddens_module] = self.hiddens_module.state_dict(destination, prefix, keep_vars)
+            state_dict_[self._hiddens_module] = self.hiddens_module.state_dict(
+                destination=destination, prefix=prefix, keep_vars=keep_vars
+            )
 
         return state_dict_
 

@@ -320,7 +320,9 @@ class BertModel(MegatronModule):
                 destination, prefix, keep_vars
             )
         if self.post_process and self.add_binary_head:
-            state_dict_[self._binary_head_key] = self.binary_head.state_dict(destination, prefix, keep_vars)
+            state_dict_[self._binary_head_key] = self.binary_head.state_dict(
+                destination=destination, prefix=prefix, keep_vars=keep_vars
+            )
         # Save word_embeddings.
         if self.post_process and not self.pre_process:
             state_dict_[self._word_embeddings_for_head_key] = self.word_embeddings.state_dict(
