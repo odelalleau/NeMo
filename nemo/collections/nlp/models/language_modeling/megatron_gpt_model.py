@@ -252,11 +252,8 @@ class MegatronGPTModel(MegatronBaseModel, TextGeneration):
 
             if not self.with_distributed_adam:
                 # Pre-allocate the model on GPU to have master parameters allocated on the same device with matching data type
-                if isinstance(self.model, list):
-                    for module in self.model:
-                        module.cuda(torch.cuda.current_device())
-                else:
-                    self.model.cuda(torch.cuda.current_device())
+                for module in self.model_list:
+                    module.cuda(torch.cuda.current_device())
 
             self._wrap_model_for_O2()
 
@@ -289,16 +286,15 @@ class MegatronGPTModel(MegatronBaseModel, TextGeneration):
         self.get_attention_mask_from_fusion = self.cfg.get('get_attention_mask_from_fusion', True)
         self.initialize_ub = self.cfg.get('ub_tp_comm_overlap', False)
 
+    @property
+    def model_list(self):
+        return self.model if isinstance(self.model, list) else [self.model]
+
     def get_gpt_module_list(self):
-        if isinstance(self.model, list):
-            return [
-                model.module if isinstance(model, (Float16Module, MCoreFloat16Module)) else model
-                for model in self.model
-            ]
-        elif isinstance(self.model, (Float16Module, MCoreFloat16Module)):
-            return [self.model.module]
-        else:
-            return [self.model]
+        return [
+            model.module if isinstance(model, (Float16Module, MCoreFloat16Module)) else model
+            for model in self.model_list
+        ]
 
     def set_inference_config(self, inference_config):
         self._inference_config = inference_config
@@ -391,11 +387,7 @@ class MegatronGPTModel(MegatronBaseModel, TextGeneration):
     def setup_optimizer_param_groups(self):
         """ModelPT override. Optimizer will get self._optimizer_param_groups"""
         if self.cfg.get('do_layer_norm_weight_decay', False):
-            if isinstance(self.model, list):
-                self._optimizer_param_groups = get_all_params_for_weight_decay_optimization(self.model)
-            else:
-                self._optimizer_param_groups = get_all_params_for_weight_decay_optimization([self.model])
-
+            self._optimizer_param_groups = get_all_params_for_weight_decay_optimization(self.model_list)
         else:
             self._optimizer_param_groups = get_params_for_weight_decay_optimization(self.model)
 
@@ -459,8 +451,7 @@ class MegatronGPTModel(MegatronBaseModel, TextGeneration):
                     buckets.append(stage_bucket)
             else:
                 # Initialize a bucket for each Transformer layer
-                modules = self.model if isinstance(self.model, list) else [self.model]
-                for module in modules:
+                for module in self.model_list:
                     if isinstance(module, (Float16Module, MCoreFloat16Module)):
                         module = module.module
                     layers = module.decoder.layers if self.mcore_gpt else module.language_model.encoder.layers
@@ -591,8 +582,7 @@ class MegatronGPTModel(MegatronBaseModel, TextGeneration):
             # PyTorch directly passes embedding parameters into a C++,
             # bypassing this process. A quick-and-dirty hack is to
             # manually interact with the parameter.
-            modules = self.model if isinstance(self.model, list) else [self.model]
-            for module in modules:
+            for module in self.model_list:
                 if isinstance(module, (Float16Module, MCoreFloat16Module)):
                     module = module.module
                 if not self.mcore_gpt:
@@ -702,11 +692,8 @@ class MegatronGPTModel(MegatronBaseModel, TextGeneration):
         """
 
         grads = []
-        if isinstance(self.model, list):
-            for module in self.model:
-                self._append_sequence_parallel_module_grads(module, grads)
-        else:
-            self._append_sequence_parallel_module_grads(self.model, grads)
+        for module in self.model_list:
+            self._append_sequence_parallel_module_grads(module, grads)
 
         coalesced = torch._utils._flatten_dense_tensors(grads)
         torch.distributed.all_reduce(coalesced, group=parallel_state.get_tensor_model_parallel_group())
@@ -759,7 +746,7 @@ class MegatronGPTModel(MegatronBaseModel, TextGeneration):
             chunks.
         """
 
-        if not isinstance(self.model, list) or len(self.model) == 1:
+        if len(self.model_list) == 1:
             return data_iterator  # TODO @tmoon: Remove
             # TODO @tmoon: Use once available in Megatron-LM
             # return DataIteratorList([data_iterator])
