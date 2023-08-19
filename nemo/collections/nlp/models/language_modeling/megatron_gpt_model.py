@@ -553,6 +553,12 @@ class MegatronGPTModel(MegatronBaseModel, TextGeneration):
         )
         self.initialize_ub = False
 
+    def train(self, mode: bool = True) -> "MegatronGPTModel":
+        if isinstance(self.model, list):
+            for module in self.model:
+                module.train(mode)
+        return super().train(mode)
+
     def training_step(self, dataloader_iter, batch_idx):
         """
             We pass the dataloader iterator function to the micro-batch scheduler.
@@ -903,15 +909,8 @@ class MegatronGPTModel(MegatronBaseModel, TextGeneration):
         if self.initialize_ub:
             self.initialize_ub_func()
 
-        if isinstance(self.model, list):
-            for model_module in self.model:
-                model_module.eval()
-
         loss = self.fwd_bwd_step(dataloader_iter, batch_idx, True)
 
-        if isinstance(self.model, list):
-            for model_module in self.model:
-                model_module.train()
         self.validation_step_outputs.append(loss) if mode == 'val' else self.test_step_outputs.append(loss)
         return loss
 
