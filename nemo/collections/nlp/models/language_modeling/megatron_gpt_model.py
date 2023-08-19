@@ -1472,5 +1472,3 @@ class MegatronGPTModel(MegatronBaseModel, TextGeneration):
         else:
             args['module'] = self.model
             self.model = Float16Wrapper(**args)
-
-        args.pop('module')
