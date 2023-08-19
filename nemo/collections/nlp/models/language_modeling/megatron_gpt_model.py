@@ -1262,10 +1262,11 @@ class MegatronGPTModel(MegatronBaseModel, TextGeneration):
             parallel_state.set_virtual_pipeline_model_parallel_rank(0)
 
     def parameters(self):
+        params = super().parameters()
         if isinstance(self.model, list):
-            return itertools.chain.from_iterable(module.parameters() for module in self.model)
+            return itertools.chain.from_iterable([params] + [module.parameters() for module in self.model])
         else:
-            return self.model.parameters()
+            return params
 
     @property
     def mgpt_wrapper(self):
