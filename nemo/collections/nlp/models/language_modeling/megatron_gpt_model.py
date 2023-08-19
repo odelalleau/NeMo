@@ -1463,12 +1463,5 @@ class MegatronGPTModel(MegatronBaseModel, TextGeneration):
         args = mcore_args if self.mcore_gpt else nemo_args
 
         # Model wrapper to convert both model and inputs to half precision
-        if isinstance(self.model, list):
-            converted_model = []
-            for module in self.model:
-                args['module'] = module
-                converted_model.append(Float16Wrapper(**args))
-            self.model = converted_model
-        else:
-            args['module'] = self.model
-            self.model = Float16Wrapper(**args)
+        converted_modules = [Float16Wrapper(module=module, **args) for module in self.model_list]
+        self.model = converted_modules if isinstance(self.model, list) else converted_modules[0]
