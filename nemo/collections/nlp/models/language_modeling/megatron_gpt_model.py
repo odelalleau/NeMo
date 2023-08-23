@@ -1296,7 +1296,6 @@ class MegatronGPTModel(MegatronBaseModel, TextGeneration):
             sampling_params = get_default_sampling_params()
 
         # set the default length params if it is None.
-        # default do greedy sampling
         if length_params is None:
             length_params = get_default_length_params()
 

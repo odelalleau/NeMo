@@ -85,7 +85,6 @@ def get_default_sampling_params():
 
 
 def get_default_length_params():
-    # default do greedy sampling
     length_params: LengthParam = {"min_length": 0, "max_length": 30}
 
     return length_params
