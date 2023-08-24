@@ -1216,13 +1216,13 @@ class MegatronGPTModel(MegatronBaseModel, TextGeneration):
 
         if stage == 'predict':
             return
-        else:
-            # TODO: consider adding a ModelPT guard to check if model is being restored.
-            # allowing restored models to optionally setup datasets
-            self.build_train_valid_test_datasets()
-            self.setup_training_data(self.cfg.data)
-            self.setup_validation_data(self.cfg.data)
-            self.setup_test_data(self.cfg.data)
+
+        # TODO: consider adding a ModelPT guard to check if model is being restored.
+        # allowing restored models to optionally setup datasets
+        self.build_train_valid_test_datasets()
+        self.setup_training_data(self.cfg.data)
+        self.setup_validation_data(self.cfg.data)
+        self.setup_test_data(self.cfg.data)
 
         if stage == 'fit':
             self.initialize_last_rank_embeddings()
