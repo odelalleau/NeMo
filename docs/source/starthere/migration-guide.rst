@@ -52,7 +52,7 @@ Migration guide to use lightning 2.0
 ..
 * With lightning 2.0 it's required to set ``limit_val_batches`` and ``num_sanity_val_steps`` to be a multiple of number of microbatches while 
   using ``dataloader_iter`` (applies only to Megatron files that use dataloader_iter) for all pretraining files (not downstream tasks like finetuning). 
-  This is being taken care internally in NeMo and does not require anything to be done by the user. However, if you are a developer of NeMo and are 
+  This is being taken care of internally in NeMo and does not require anything to be done by the user. However, if you are a developer of NeMo and are 
   building a new model for pretraining that uses ``dataloader_iter`` instead of batch in ``validation_step`` methods please make sure to call 
   ``self._reconfigure_val_batches()`` in ``build_train_valid_test_datasets method`` of your model.
 ..
