@@ -314,7 +314,7 @@ class MegatronNMTModel(MegatronLMEncoderDecoderModel, Exportable):
         # Check if iterator is exhausted
         dataloader_iter, done = self._val_iterator_done(dataloader_iter)
         if done:
-            return
+            return None
         # Need to squeze dim 0 for old NMT datasets since things are pre-batched and we ask the dataloader for batch size 1.
         batch = next(dataloader_iter)
         batch = [x.squeeze(dim=0) if x.ndim == 3 else x for x in batch]

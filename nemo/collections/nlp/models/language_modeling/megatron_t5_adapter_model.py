@@ -150,7 +150,7 @@ class MegatronT5BaseAdapterModel(MegatronT5PromptLearningModel):
         # Check if iterator is exhausted
         dataloader_iter, done = self._val_iterator_done(dataloader_iter)
         if done:
-            return
+            return None
         batch = next(dataloader_iter)
         enc_input, dec_input, labels, loss_mask, enc_mask, dec_mask, position_ids, taskname_ids = batch
 

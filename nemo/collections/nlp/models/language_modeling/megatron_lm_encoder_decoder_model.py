@@ -706,7 +706,7 @@ class MegatronLMEncoderDecoderModel(MegatronBaseModel):
         # Check if iterator is exhausted
         dataloader_iter, done = self._val_iterator_done(dataloader_iter)
         if done:
-            return
+            return None
 
         loss_dict = self.fwd_bwd_step(dataloader_iter, batch_idx, True)
         step_outputs.append(loss_dict)

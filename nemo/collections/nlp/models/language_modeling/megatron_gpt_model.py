@@ -1023,7 +1023,7 @@ class MegatronGPTModel(MegatronBaseModel, TextGeneration):
         # Check if iterator is exhausted
         dataloader_iter, done = self._val_iterator_done(dataloader_iter)
         if done:
-            return
+            return None
         mode = 'test' if self.trainer.testing else 'val'
         # Initialize userbuffer communicators.
         if self.initialize_ub:

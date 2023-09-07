@@ -316,7 +316,7 @@ class MegatronT5SFTModel(NLPAdapterModelMixin, MegatronT5Model):
         # Check if iterator is exhausted
         dataloader_iter, done = self._val_iterator_done(dataloader_iter)
         if done:
-            return
+            return None
         # Regular finetuning datasets will return a list of dicts for each microbatch.
         # But T0 datasets will return a single dict for the global batch.
         batch = next(dataloader_iter)
