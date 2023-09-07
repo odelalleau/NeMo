@@ -1092,7 +1092,9 @@ class MegatronBaseModel(NLPModel):
 
     def _val_iterator_done(self, iterator):
         """
-        Check if the iterator is exhausted, if so raise a StopIteration and exit validation_step
+        Check if the iterator is exhausted.
+
+        Return a pair `(iterator, done)` where `done` is True if the iterator is exhausted and False otherwise.
         """
         try:
             element = next(iterator)
