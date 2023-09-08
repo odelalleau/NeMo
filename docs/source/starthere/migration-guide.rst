@@ -31,8 +31,8 @@ Migration guide to use lightning 2.0
 * If used ``from pytorch_lightning.plugins.precision.native_amp import NativeMixedPrecisionPlugin`` from replace it with 
   `from pytorch_lightning.plugins.precision import MixedPrecisionPlugin <https://lightning.ai/docs/pytorch/stable/upgrade/from_1_9.html#:~:text=used%20the%20pl.plugins.NativeMixedPrecisionPlugin%20plugin>`_. 
 ..
-* Lightning 2.0 adds ``'16-mixed'``, ``'bf16-mixed'`` as the preicison values for fp16 mixed precision and bf16 mixed precision respectively. 
-  For backward compatbility ``16`` or ``'16'`` and ``'bf16'`` also perform mixed precision and is equivalent to ``'16-mixed'`` and ``'bf16-mixed'`` 
+* Lightning 2.0 adds ``'16-mixed'``, ``'bf16-mixed'`` as the precision values for fp16 mixed precision and bf16 mixed precision respectively. 
+  For backward compatbility ``16`` or ``'16'`` and ``'bf16'`` also perform mixed precision and are equivalent to ``'16-mixed'`` and ``'bf16-mixed'`` 
   respectively. However, lightning recommends to use ``'16-mixed'`` and ``'bf16-mixed'`` to make it less ambiguous. Due to this, ``MegatronHalfPrecisionPlugin's`` 
   parent class from lightning ``MixedPrecisionPlugin`` class, expects the precision arg to be ``'16-mixed'`` and ``'bf16-mixed'``. As a result it's required to 
   pass ``'16-mixed'`` or ``'bf16-mixed'`` to ``MixedPrecisionPLugin`` whenever the precision passed is any of ``[16, '16', '16-mixed']`` or ``['bf16', 'bf16-mixed']``. 
