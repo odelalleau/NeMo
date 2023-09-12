@@ -127,7 +127,7 @@ class SaveRestoreConnector:
                 else:
                     # Extract the nemo file into the temporary directory
                     self._unpack_nemo_file(
-                        path2file=restore_path, out_folder=tmpdir, extract_config_only=return_config is True
+                        path2file=restore_path, out_folder=tmpdir, extract_config_only=return_config
                     )
 
                 # Change current working directory to
@@ -241,7 +241,7 @@ class SaveRestoreConnector:
         loaded_params = self.load_config_and_state_dict(
             calling_cls, restore_path, override_config_path, map_location, strict, return_config, trainer,
         )
-        if not isinstance(loaded_params, tuple) or return_config is True:
+        if not isinstance(loaded_params, tuple) or return_config:
             return loaded_params
         conf, instance, state_dict = loaded_params
         state_dict = self.modify_state_dict(conf, state_dict)
