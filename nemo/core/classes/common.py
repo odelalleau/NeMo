@@ -488,7 +488,7 @@ class Serialization(ABC):
                 except Exception as e:
                     # record previous error
                     tb = traceback.format_exc()
-                    prev_error = f"Model instantiation failed!\nTarget class:\t{target_cls}" f"\nError(s):\t{e}\n{tb}"
+                    prev_error = f"Model instantiation failed!\nTarget class:\t{target_cls}\nError(s):\t{e}\n{tb}"
                     logging.debug(prev_error + "\nFalling back to `cls`.")
 
             # target class resolution was unsuccessful, fall back to current `cls`
