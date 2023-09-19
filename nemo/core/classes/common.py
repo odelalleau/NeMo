@@ -500,11 +500,11 @@ class Serialization(ABC):
                     else:
                         instance = cls(cfg=config)
 
-                except Exception as e:
+                except Exception:
                     # report saved errors, if any, and raise
                     if prev_error:
                         logging.error(prev_error)
-                    raise e
+                    raise
 
         if not hasattr(instance, '_cfg'):
             instance._cfg = config
