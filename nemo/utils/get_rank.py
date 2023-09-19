@@ -41,7 +41,10 @@ def is_global_rank_zero():
 
 
 def get_rank():
-    """ Helper function that returns torch.distributed.get_rank() if DDP has been initialized otherwise it returns 0.
+    """
+    Helper function that returns:
+        - 0 if it can be seen from env variables that this is the rank 0 process
+        - `torch.distributed.get_rank()` otherwise
     """
 
     if is_global_rank_zero():
