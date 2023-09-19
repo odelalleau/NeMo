@@ -197,7 +197,8 @@ class NeMoModelCheckpoint(ModelCheckpoint):
             if should_save_last_checkpoint:
                 monitor_candidates = self._monitor_candidates(trainer)
                 super()._save_last_checkpoint(trainer, monitor_candidates)
-        # Call parent on_train_end() to save the -last checkpoint
+
+        # Call parent on_train_end() for completeness (expected to be a no-op).
         super().on_train_end(trainer, pl_module)
 
         # Load the best model and then re-save it
