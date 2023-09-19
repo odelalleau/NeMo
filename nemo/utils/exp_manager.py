@@ -572,7 +572,7 @@ def check_resume(
     resume_past_end: bool = False,
     resume_ignore_no_checkpoint: bool = False,
     dirpath: str = None,
-    resume_from_checkpoint: str = None,
+    resume_from_checkpoint: str = "",
 ):
     """Checks that resume=True was used correctly with the arguments pass to exp_manager. Sets
     trainer._checkpoint_connector._ckpt_path as necessary.
