@@ -403,7 +403,7 @@ def convert_model_config_to_dict_config(cfg: Union['DictConfig', 'NemoConfig']) 
     if not _HAS_HYDRA:
         logging.error("This function requires Hydra/Omegaconf and it was not installed.")
         exit(1)
-    if not isinstance(cfg, (OmegaConf, DictConfig)) and is_dataclass(cfg):
+    if not isinstance(cfg, DictConfig) and is_dataclass(cfg):
         cfg = OmegaConf.structured(cfg)
 
     if not isinstance(cfg, DictConfig):

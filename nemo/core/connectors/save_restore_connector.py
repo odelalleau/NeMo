@@ -73,7 +73,7 @@ class SaveRestoreConnector:
         self,
         calling_cls,
         restore_path: str,
-        override_config_path: Optional[Union[OmegaConf, str]] = None,
+        override_config_path: Optional[Union[DictConfig, str]] = None,
         map_location: Optional[torch.device] = None,
         strict: bool = True,
         return_config: bool = False,
@@ -85,7 +85,7 @@ class SaveRestoreConnector:
         Args:
             restore_path: path to .nemo file from which model should be instantiated
             override_config_path: path to a yaml config that will override the internal
-                config file or an OmegaConf / DictConfig object representing the model config.
+                config file or a DictConfig object representing the model config.
             map_location: Optional torch.device() to map the instantiated model to a device.
                 By default (None), it will select a GPU if available, falling back to CPU otherwise.
             strict: Passed to load_state_dict. By default True
@@ -135,9 +135,9 @@ class SaveRestoreConnector:
                 if override_config_path is None:
                     config_yaml = self.model_config_yaml
                 else:
-                    # can be str path or OmegaConf / DictConfig object
+                    # can be str path or DictConfig object
                     config_yaml = override_config_path
-                if not isinstance(config_yaml, (OmegaConf, DictConfig)):
+                if not isinstance(config_yaml, DictConfig):
                     conf = OmegaConf.load(config_yaml)
                 else:
                     conf = config_yaml
@@ -208,7 +208,7 @@ class SaveRestoreConnector:
         self,
         calling_cls,
         restore_path: str,
-        override_config_path: Optional[Union[OmegaConf, str]] = None,
+        override_config_path: Optional[Union[DictConfig, str]] = None,
         map_location: Optional[torch.device] = None,
         strict: bool = True,
         return_config: bool = False,
@@ -220,7 +220,7 @@ class SaveRestoreConnector:
         Args:
             restore_path: path to .nemo file from which model should be instantiated
             override_config_path: path to a yaml config that will override the internal
-                config file or an OmegaConf / DictConfig object representing the model config.
+                config file or a DictConfig object representing the model config.
             map_location: Optional torch.device() to map the instantiated model to a device.
                 By default (None), it will select a GPU if available, falling back to CPU otherwise.
             strict: Passed to load_state_dict. By default True
