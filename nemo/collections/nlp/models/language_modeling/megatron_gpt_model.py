@@ -1139,7 +1139,7 @@ class MegatronGPTModel(MegatronBaseModel, TextGeneration):
     def build_pretraining_data_loader(
         self, dataset, consumed_samples, dataset_type=None, drop_last=True, pad_samples_to_global_batch_size=False
     ):
-        """Buld dataloader given an input dataset."""
+        """Build dataloader given an input dataset."""
 
         logging.info(f'Building dataloader with consumed samples: {consumed_samples}')
         # Megatron sampler

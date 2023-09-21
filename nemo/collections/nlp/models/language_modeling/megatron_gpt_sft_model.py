@@ -778,7 +778,7 @@ class MegatronGPTSFTModel(NLPAdapterModelMixin, MegatronGPTModel):
         logging.info(f'Length of train dataset: {len(self._train_ds)}')
 
     def build_data_loader(self, dataset, data_cfg, consumed_samples=0):
-        """Buld dataloader given an input dataset."""
+        """Build dataloader given an input dataset."""
 
         logging.info(f'Building dataloader with consumed samples: {consumed_samples}')
         if isinstance(dataset, BlendableDataset):

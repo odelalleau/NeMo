@@ -196,7 +196,7 @@ class MegatronT0Model(MegatronT5SFTModel):
     def build_data_loader(
         self, dataset, data_cfg, consumed_samples=0,
     ):
-        """Buld dataloader given an input dataset."""
+        """Build dataloader given an input dataset."""
         logging.info(f'Building dataloader with consumed samples: {consumed_samples}')
         if isinstance(dataset, BlendableDataset):
             collate_fn = dataset.datasets[0].collate_fn

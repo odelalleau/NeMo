@@ -396,7 +396,7 @@ class MegatronRetrievalModel(MegatronBaseModel, TextGeneration):
         return self._train_ds, self._validation_ds, self._test_ds
 
     def build_pretraining_data_loader(self, dataset, consumed_samples):
-        """Buld dataloader given an input dataset."""
+        """Build dataloader given an input dataset."""
 
         if dataset is None:
             return None

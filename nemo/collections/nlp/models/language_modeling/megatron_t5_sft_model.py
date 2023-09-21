@@ -608,7 +608,7 @@ class MegatronT5SFTModel(NLPAdapterModelMixin, MegatronT5Model):
     def build_data_loader(
         self, dataset, global_batch_size, shuffle, num_workers, pin_memory, drop_last,
     ):
-        """Buld dataloader given an input dataset."""
+        """Build dataloader given an input dataset."""
 
         if dataset is None:
             return None

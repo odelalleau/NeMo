@@ -791,7 +791,7 @@ class MegatronBertModel(MegatronBaseModel):
             buf.copy_(synced)
 
     def build_pretraining_data_loader(self, dataset, consumed_samples):
-        """Buld dataloader given an input dataset."""
+        """Build dataloader given an input dataset."""
 
         if dataset is None:
             return None

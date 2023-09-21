@@ -874,7 +874,7 @@ class MegatronLMEncoderDecoderModel(MegatronBaseModel):
         raise NotImplementedError("Please implement this method in child-class")
 
     def build_pretraining_data_loader(self, dataset, consumed_samples, num_workers):
-        """Buld dataloader given an input dataset."""
+        """Build dataloader given an input dataset."""
 
         if dataset is None:
             return None
