@@ -872,7 +872,7 @@ def prepare_lr_scheduler(
         # we may need to override ModelPT setup_optimization
         if train_dataloader.batch_size is not None:
             batch_size = train_dataloader.batch_size
-        elif hasattr(train_dataloader, 'batch_sampler') and train_dataloader.batch_sampler is not None:
+        elif getattr(train_dataloader, 'batch_sampler', None) is not None:
             if train_dataloader.batch_sampler.micro_batch_size is not None:
                 batch_size = train_dataloader.batch_sampler.micro_batch_size
             else:
