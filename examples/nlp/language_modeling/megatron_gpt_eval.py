@@ -183,6 +183,7 @@ def main(cfg) -> None:
             return_config=True,
             save_restore_connector=save_restore_connector,
         )
+        print(model_config)
 
         with open_dict(cfg):
             cfg.tensor_model_parallel_size = model_config.get('tensor_model_parallel_size', 1)
@@ -277,20 +278,85 @@ def main(cfg) -> None:
             cfg.prompts.append("")
             nb_paddings += 1
 
-    # First method of running text generation, call model.generate method
-    response = model.generate(
-        inputs=OmegaConf.to_container(cfg.prompts), length_params=length_params, sampling_params=sampling_params
-    )
+    # # First method of running text generation, call model.generate method
+    # response = model.generate(
+    #     inputs=OmegaConf.to_container(cfg.prompts), length_params=length_params, sampling_params=sampling_params
+    # )
 
-    if fp8_enabled:
-        response = remove_padded_prompts(response, nb_paddings)
-    print("***************************")
-    print(response)
-    print("***************************")
+    # if fp8_enabled:
+    #     response = remove_padded_prompts(response, nb_paddings)
+    # print("***************************")
+    # print(response)
+    # print("***************************")
 
-    # Second method of running text generation, call trainer.predict [recommended]
-    bs = 8 if fp8_enabled else 2
-    ds = RequestDataSet(OmegaConf.to_container(cfg.prompts))
+    # # Second method of running text generation, call trainer.predict [recommended]
+    # bs = 8 if fp8_enabled else 2
+    # ds = RequestDataSet(OmegaConf.to_container(cfg.prompts))
+    # request_dl = DataLoader(dataset=ds, batch_size=bs)
+    # config = OmegaConf.to_container(cfg.inference)
+    # model.set_inference_config(config)
+    # response = trainer.predict(model, request_dl)
+
+    # if fp8_enabled:
+    #     response[-1] = remove_padded_prompts(response[-1], nb_paddings)
+    # print("***************************")
+    # print(response)
+    # print("***************************")
+
+    # # Third method of running text generation, use inference server
+    # if cfg.server:
+    #     from nemo.collections.nlp.modules.common.megatron_web_server import get_chatbot_demo, get_demo
+
+    #     if parallel_state.is_pipeline_first_stage() and parallel_state.get_tensor_model_parallel_rank() == 0:
+    #         if cfg.web_server:
+    #             if cfg.chat:
+    #                 defaults = {
+    #                     'user': cfg.chatbot_config.user,
+    #                     'assistant': cfg.chatbot_config.assistant,
+    #                     'system': cfg.chatbot_config.system,
+    #                 }
+    #                 web_ui = partial(get_chatbot_demo, defaults=defaults, value=cfg.chatbot_config.value)
+    #             else:
+    #                 web_ui = get_demo
+    #             loop = asyncio.new_event_loop()
+    #             thread = threading.Thread(
+    #                 target=web_ui,
+    #                 daemon=True,
+    #                 args=(cfg.share, cfg.username, cfg.password, cfg.port, cfg.web_port, loop),
+    #             )
+    #             thread.start()
+    #         server = MegatronServer(model.cuda())
+    #         server.run("0.0.0.0", port=cfg.port)
+
+    #     while True:
+    #         choice = torch.cuda.LongTensor(1)
+    #         torch.distributed.broadcast(choice, 0)
+    #         if choice[0].item() == 0:
+    #             generate(model.cuda())
+
+    # 4th method of running text generation, call trainer.predict [recommended]
+    from tqdm.auto import tqdm
+    import json
+    SYSTEM_PROMPT="A chat between a curious human and an artificial intelligence assistant. The assistant gives helpful, detailed, and polite answers to the human’s questions.\n\n"
+    #SYSTEM_PROMPT="A chat between a curious human and an artificial intelligence assistant. The assistant gives helpful, detailed, correct, complete, and polite answers to the human’s questions. The assistant should minimize any irrelevant prose and should not produce duplicated answers.\n\n"
+    #SYSTEM_PROMPT="A chat between a curious user and an artificial intelligence assistant. The assistant gives helpful, detailed, correct, complete, and polite answers to the user’s questions. The assistant should follow the user's requirements carefully & to the letter. The assistant should minimize any irrelevant prose. The assistant should not produce duplicated answers.\n\n"
+    #SYSTEM_PROMPT=""
+
+    bs = 8 if fp8_enabled else 1
+    prompt_list=[]
+    dataset = open(cfg.prompts_file, 'r', encoding='utf-8')
+    for json_line in tqdm(dataset):
+        if type(json_line) == dict:
+            doc = json_line
+        else:
+            doc = json.loads(json_line)
+
+        if "<extra_id_0>System" not in doc["input"]:
+            prompt_list.append(SYSTEM_PROMPT+doc['input'])
+        else:
+            prompt_list.append(doc["input"])
+
+    ds = RequestDataSet(prompt_list)
     request_dl = DataLoader(dataset=ds, batch_size=bs)
     config = OmegaConf.to_container(cfg.inference)
     model.set_inference_config(config)
@@ -298,41 +364,21 @@ def main(cfg) -> None:
 
     if fp8_enabled:
         response[-1] = remove_padded_prompts(response[-1], nb_paddings)
+
     print("***************************")
-    print(response)
+    with open(cfg.pred_file_path, "w", encoding="utf-8") as pred_file:
+        for i in range(len(response)):
+            for sent in response[i]["sentences"]:
+                sent = sent.strip()
+                # sent = sent.replace("\n", " ")
+                if 'Assistant:' in sent:
+                    sent=sent.split('Assistant:')[1].strip().lstrip()
+                if '<extra_id_1>Assistant' in sent:
+                    sent=sent.split('<extra_id_1>Assistant')[1].split('<extra_id_1>')[0].strip().lstrip()
+                sent=json.dumps({"output":sent})
+                pred_file.write(sent + "\n")
+    print(f"Inference Complete, prediction file saved at {cfg.pred_file_path}")
     print("***************************")
-
-    # Third method of running text generation, use inference server
-    if cfg.server:
-        from nemo.collections.nlp.modules.common.megatron_web_server import get_chatbot_demo, get_demo
-
-        if parallel_state.is_pipeline_first_stage() and parallel_state.get_tensor_model_parallel_rank() == 0:
-            if cfg.web_server:
-                if cfg.chat:
-                    defaults = {
-                        'user': cfg.chatbot_config.user,
-                        'assistant': cfg.chatbot_config.assistant,
-                        'system': cfg.chatbot_config.system,
-                    }
-                    web_ui = partial(get_chatbot_demo, defaults=defaults, value=cfg.chatbot_config.value)
-                else:
-                    web_ui = get_demo
-                loop = asyncio.new_event_loop()
-                thread = threading.Thread(
-                    target=web_ui,
-                    daemon=True,
-                    args=(cfg.share, cfg.username, cfg.password, cfg.port, cfg.web_port, loop),
-                )
-                thread.start()
-            server = MegatronServer(model.cuda())
-            server.run("0.0.0.0", port=cfg.port)
-
-        while True:
-            choice = torch.cuda.LongTensor(1)
-            torch.distributed.broadcast(choice, 0)
-            if choice[0].item() == 0:
-                generate(model.cuda())
-
 
 if __name__ == '__main__':
     main()  # noqa pylint: disable=no-value-for-parameter
