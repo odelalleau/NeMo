@@ -785,7 +785,7 @@ class MegatronGPTModel(MegatronBaseModel, TextGeneration):
                         f"Invalid loss ({validation_step=}):\n{loss_for_ub=}\n{loss_mask.sum().item()=}\n"
                         f"{is_not_finite.any().item()=}\nText:\n{txt}"
                     )
-                    loss_for_ub = torch.zeros_like(loss_for_ub)
+                    loss_for_ub = torch.sum(output_tensor) * 0.0
                 if validation_step and is_not_finite.any():
                     logging.warning(
                         f"Non-finite validation loss: {is_not_finite.shape=}, {is_not_finite.sum().item()=}"
