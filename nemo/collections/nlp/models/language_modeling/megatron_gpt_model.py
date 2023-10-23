@@ -777,7 +777,11 @@ class MegatronGPTModel(MegatronBaseModel, TextGeneration):
 
             def loss_func(output_tensor):
                 # Loss for a micro-batch (ub)
-                loss_for_ub, is_not_finite = self.loss_func(batch['loss_mask'], output_tensor)
+                loss_for_ub, is_not_finite, loss_mask = self.loss_func(batch['loss_mask'], output_tensor)
+                if not loss_for_ub.isfinite().all():
+                    logging.warning(
+                        f"Invalid loss ({validation_step=}):\n{loss_for_ub=}\n{loss_mask.sum().item()=}\n{is_not_finite.any().item()=}"
+                    )
                 if validation_step and is_not_finite.any():
                     logging.warning(
                         f"Non-finite validation loss: {is_not_finite.shape=}, {is_not_finite.sum().item()=}"
@@ -895,7 +899,7 @@ class MegatronGPTModel(MegatronBaseModel, TextGeneration):
         loss_mask = loss_mask * is_finite.view(-1)
         # TODO: add nemo version here
         loss = torch.sum(losses.view(-1) * loss_mask) / loss_mask.sum()  # sequence level nll
-        return loss, is_not_finite
+        return loss, is_not_finite, loss_mask
 
     def build_train_valid_test_datasets(self):
         logging.info('Building GPT datasets.')
