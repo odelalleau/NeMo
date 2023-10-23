@@ -780,9 +780,12 @@ class MegatronGPTModel(MegatronBaseModel, TextGeneration):
                 # Loss for a micro-batch (ub)
                 loss_for_ub, is_not_finite, loss_mask = self.loss_func(batch['loss_mask'], output_tensor)
                 if not loss_for_ub.isfinite().all():
+                    txt = self.tokenizer.ids_to_text(batch["tokens"])
                     logging.warning(
-                        f"Invalid loss ({validation_step=}):\n{loss_for_ub=}\n{loss_mask.sum().item()=}\n{is_not_finite.any().item()=}"
+                        f"Invalid loss ({validation_step=}):\n{loss_for_ub=}\n{loss_mask.sum().item()=}\n"
+                        f"{is_not_finite.any().item()=}\nText:\n{txt}"
                     )
+                    loss_for_ub = torch.zeros_like(loss_for_ub)
                 if validation_step and is_not_finite.any():
                     logging.warning(
                         f"Non-finite validation loss: {is_not_finite.shape=}, {is_not_finite.sum().item()=}"
