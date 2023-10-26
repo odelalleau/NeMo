@@ -335,15 +335,17 @@ def main(cfg) -> None:
     #             generate(model.cuda())
 
     # 4th method of running text generation, call trainer.predict [recommended]
-    from tqdm.auto import tqdm
     import json
-    SYSTEM_PROMPT="A chat between a curious human and an artificial intelligence assistant. The assistant gives helpful, detailed, and polite answers to the human’s questions.\n\n"
-    #SYSTEM_PROMPT="A chat between a curious human and an artificial intelligence assistant. The assistant gives helpful, detailed, correct, complete, and polite answers to the human’s questions. The assistant should minimize any irrelevant prose and should not produce duplicated answers.\n\n"
-    #SYSTEM_PROMPT="A chat between a curious user and an artificial intelligence assistant. The assistant gives helpful, detailed, correct, complete, and polite answers to the user’s questions. The assistant should follow the user's requirements carefully & to the letter. The assistant should minimize any irrelevant prose. The assistant should not produce duplicated answers.\n\n"
-    #SYSTEM_PROMPT=""
+
+    from tqdm.auto import tqdm
+
+    SYSTEM_PROMPT = "A chat between a curious human and an artificial intelligence assistant. The assistant gives helpful, detailed, and polite answers to the human’s questions.\n\n"
+    # SYSTEM_PROMPT="A chat between a curious human and an artificial intelligence assistant. The assistant gives helpful, detailed, correct, complete, and polite answers to the human’s questions. The assistant should minimize any irrelevant prose and should not produce duplicated answers.\n\n"
+    # SYSTEM_PROMPT="A chat between a curious user and an artificial intelligence assistant. The assistant gives helpful, detailed, correct, complete, and polite answers to the user’s questions. The assistant should follow the user's requirements carefully & to the letter. The assistant should minimize any irrelevant prose. The assistant should not produce duplicated answers.\n\n"
+    # SYSTEM_PROMPT=""
 
     bs = 8 if fp8_enabled else 1
-    prompt_list=[]
+    prompt_list = []
     dataset = open(cfg.prompts_file, 'r', encoding='utf-8')
     for json_line in tqdm(dataset):
         if type(json_line) == dict:
@@ -352,7 +354,7 @@ def main(cfg) -> None:
             doc = json.loads(json_line)
 
         if "<extra_id_0>System" not in doc["input"]:
-            prompt_list.append(SYSTEM_PROMPT+doc['input'])
+            prompt_list.append(SYSTEM_PROMPT + doc['input'])
         else:
             prompt_list.append(doc["input"])
 
@@ -372,13 +374,14 @@ def main(cfg) -> None:
                 sent = sent.strip()
                 # sent = sent.replace("\n", " ")
                 if 'Assistant:' in sent:
-                    sent=sent.split('Assistant:')[1].strip().lstrip()
+                    sent = sent.split('Assistant:')[1].strip().lstrip()
                 if '<extra_id_1>Assistant' in sent:
-                    sent=sent.split('<extra_id_1>Assistant')[1].split('<extra_id_1>')[0].strip().lstrip()
-                sent=json.dumps({"output":sent})
+                    sent = sent.split('<extra_id_1>Assistant')[1].split('<extra_id_1>')[0].strip().lstrip()
+                sent = json.dumps({"output": sent})
                 pred_file.write(sent + "\n")
     print(f"Inference Complete, prediction file saved at {cfg.pred_file_path}")
     print("***************************")
+
 
 if __name__ == '__main__':
     main()  # noqa pylint: disable=no-value-for-parameter
