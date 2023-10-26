@@ -374,9 +374,9 @@ def main(cfg) -> None:
                 sent = sent.strip()
                 # sent = sent.replace("\n", " ")
                 if 'Assistant:' in sent:
-                    sent = sent.split('Assistant:')[1].strip().lstrip()
+                    sent = sent.rsplit('Assistant:', 1)[1].strip()
                 if '<extra_id_1>Assistant' in sent:
-                    sent = sent.split('<extra_id_1>Assistant')[1].split('<extra_id_1>')[0].strip().lstrip()
+                    sent = sent.rsplit('<extra_id_1>Assistant', 1)[1].split('<extra_id_1>')[0].strip()
                 sent = json.dumps({"output": sent})
                 pred_file.write(sent + "\n")
     print(f"Inference Complete, prediction file saved at {cfg.pred_file_path}")
