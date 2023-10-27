@@ -987,7 +987,7 @@ class MegatronGPTModel(MegatronBaseModel, TextGeneration):
                     attention_mask = attention_mask.cuda()
                     attention_mask = attention_mask[0:1]
                 if self.mcore_gpt:
-                    # if first step, then clear KV cache, otherwise reuse inference_paarms
+                    # if first step, then clear KV cache, otherwise reuse inference_params
                     if set_inference_key_value_memory[0].item():
                         self.inference_params = InferenceParams(
                             max_batch_size=tokens.size(0), max_sequence_length=inference_max_sequence_len[0].item()
