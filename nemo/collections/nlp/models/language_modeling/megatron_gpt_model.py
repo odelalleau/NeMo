@@ -824,12 +824,12 @@ class MegatronGPTModel(MegatronBaseModel, TextGeneration):
                     toks = batch["tokens"]
                     lm = loss_mask.reshape((len(toks), -1))[0]
                     toks_orig = toks[0].detach()
-                    toks_masked = toks_orig.clone()
-                    toks_masked[lm == 0.0] = 5635  # token ID for '_'
+                    labels_masked = batch["labels"][0].detach().clone()
+                    labels_masked[lm == 0.0] = 5635  # token ID for '_'
                     txt_orig = self.tokenizer.ids_to_text(toks_orig.tolist())
-                    txt_masked = self.tokenizer.ids_to_text(toks_masked.tolist())
+                    txt_masked = self.tokenizer.ids_to_text(labels_masked.tolist())
                     logging.warning(f"Original text ({validation_step=}, {ok=}):\n{txt_orig}")
-                    logging.warning(f"Text after masking:\n{txt_masked}")
+                    logging.warning(f"Masked labels:\n{txt_masked}")
 
                 if not loss_for_ub.isfinite().all():
                     txt = self.tokenizer.ids_to_text(batch["tokens"][0].tolist())
