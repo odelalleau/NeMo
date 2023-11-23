@@ -781,16 +781,16 @@ class MegatronGPTModel(MegatronBaseModel, TextGeneration):
                 # Loss for a micro-batch (ub)
                 loss_for_ub, is_not_finite, loss_mask = self.loss_func(batch['loss_mask'], output_tensor)
 
-                if random.uniform() < 0.5:
+                if random.uniform(0, 1) < 0.5:
                     ok = loss_for_ub.isfinite().all()
                     toks = batch["tokens"]
-                    lm = loss_mask.reshape(toks.shape)[0]
-                    toks_orig = toks[0].detach()
+                    lm = loss_mask.reshape((len(toks), -1))[0]
+                    toks_orig = toks[0].detach()[1:]
                     toks_masked = toks_orig.clone()
                     toks_masked[lm == 0.0] = 5635  # token ID for '_'
                     txt_orig = self.tokenizer.ids_to_text(toks_orig.tolist())
                     txt_masked = self.tokenizer.ids_to_text(toks_masked.tolist())
-                    logging.warning(f"Original text ({ok=}):\n{txt_orig}")
+                    logging.warning(f"Original text ({validation_step=}, {ok=}):\n{txt_orig}")
                     logging.warning(f"Text after masking:\n{txt_masked}")
 
                 if not loss_for_ub.isfinite().all():
