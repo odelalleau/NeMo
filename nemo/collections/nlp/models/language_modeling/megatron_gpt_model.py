@@ -785,7 +785,7 @@ class MegatronGPTModel(MegatronBaseModel, TextGeneration):
                     ok = loss_for_ub.isfinite().all()
                     toks = batch["tokens"]
                     lm = loss_mask.reshape((len(toks), -1))[0]
-                    toks_orig = toks[0].detach()[1:]
+                    toks_orig = toks[0].detach()
                     toks_masked = toks_orig.clone()
                     toks_masked[lm == 0.0] = 5635  # token ID for '_'
                     txt_orig = self.tokenizer.ids_to_text(toks_orig.tolist())
