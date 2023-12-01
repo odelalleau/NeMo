@@ -781,7 +781,7 @@ class MegatronGPTModel(MegatronBaseModel, TextGeneration):
                 # Loss for a micro-batch (ub)
                 loss_for_ub, is_not_finite, loss_mask = self.loss_func(batch['loss_mask'], output_tensor)
 
-                if random.uniform(0, 1) < 0.5:
+                if random.uniform(0, 1) < 0.01:
                     ok = loss_for_ub.isfinite().all()
                     toks = batch["tokens"]
                     lm = loss_mask.reshape((len(toks), -1))[0]
