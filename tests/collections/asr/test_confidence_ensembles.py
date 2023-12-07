@@ -117,12 +117,7 @@ class TestConfidenceEnsembles:
             preserve_frame_confidence=True,
             exclude_blank=True,
             aggregation="mean",
-            method_cfg=ConfidenceMethodConfig(
-                name="entropy",
-                entropy_type="renui",
-                temperature=0.25,  # this is not really temperature, but alpha, see https://arxiv.org/abs/2212.08703
-                entropy_norm="lin",
-            ),
+            method_cfg=ConfidenceMethodConfig(name="entropy", entropy_type="renyi", alpha=0.25, entropy_norm="lin",),
         )
 
         # just checking that no errors are raised when creating the model
@@ -153,12 +148,7 @@ class TestConfidenceEnsembles:
             preserve_frame_confidence=True,
             exclude_blank=True,
             aggregation="mean",
-            method_cfg=ConfidenceMethodConfig(
-                name="entropy",
-                entropy_type="renui",
-                temperature=0.25,  # this is not really temperature, but alpha, see https://arxiv.org/abs/2212.08703
-                entropy_norm="lin",
-            ),
+            method_cfg=ConfidenceMethodConfig(name="entropy", entropy_type="renyi", alpha=0.25, entropy_norm="lin",),
         )
 
         # just checking that no errors are raised when creating the model
