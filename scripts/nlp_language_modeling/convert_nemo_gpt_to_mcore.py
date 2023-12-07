@@ -163,7 +163,7 @@ def load_model(model, state_dict):
             buffer.data = state_dict.pop(name)
 
     if len(state_dict.keys()) != 0:
-        raise RuntimeError(f"Additional keys: {state_dict.keys()} in state_dict but not in model.")
+        logging.warning(f"Additional keys: {state_dict.keys()} in state_dict but not in model.")
 
     return model
 
