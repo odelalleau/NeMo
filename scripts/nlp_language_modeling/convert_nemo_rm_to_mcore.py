@@ -113,25 +113,27 @@ def build_key_mapping(nemo_cfg):
 
     # For GPT there is a 1:1 mapping of keys
     mcore_to_nemo_mapping = {
-        f"{model_str}.embedding.word_embeddings.weight": "model.language_model.embedding.word_embeddings.weight",
-        f"{model_str}.decoder.final_layernorm.weight": "model.language_model.encoder.final_layernorm.weight",
+        f"{model_str}.embedding.word_embeddings.weight": "model.module.language_model.embedding.word_embeddings.weight",
+        f"{model_str}.decoder.final_layernorm.weight": "model.module.language_model.encoder.final_layernorm.weight",
     }
     if has_layernorm_bias:
         mcore_to_nemo_mapping[
             f"{model_str}.decoder.final_layernorm.bias"
-        ] = "model.language_model.encoder.final_layernorm.bias"
+        ] = "model.module.language_model.encoder.final_layernorm.bias"
 
     if not nemo_cfg.get("share_embeddings_and_output_weights", True):
-        mcore_to_nemo_mapping[f"{model_str}.output_layer.weight"] = "model.language_model.output_layer.weight"
+        mcore_to_nemo_mapping[f"{model_str}.output_layer.weight"] = "model.module.language_model.output_layer.weight"
 
     if nemo_cfg.get("position_embedding_type", 'learned_absolute') == 'rope':
-        mcore_to_nemo_mapping[f"{model_str}.rotary_pos_emb.inv_freq"] = "model.language_model.rotary_pos_emb.inv_freq"
+        mcore_to_nemo_mapping[
+            f"{model_str}.rotary_pos_emb.inv_freq"
+        ] = "model.module.language_model.rotary_pos_emb.inv_freq"
     else:
         mcore_to_nemo_mapping[
             f"{model_str}.embedding.position_embeddings.weight"
-        ] = "model.language_model.embedding.position_embeddings.weight"
+        ] = "model.module.language_model.embedding.position_embeddings.weight"
 
-    nemo_prefix = "model.language_model.encoder.layers"
+    nemo_prefix = "model.module.language_model.encoder.layers"
     mcore_prefix = f"{model_str}.decoder.layers"
     for i in range(num_layers):
         for wb in ('weight', 'bias') if has_bias else ('weight',):
