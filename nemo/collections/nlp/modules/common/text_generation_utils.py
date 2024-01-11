@@ -649,6 +649,7 @@ def generate(
         min_tokens_to_generate=min_tokens_to_generate,
         image_list=image_list,
     )
+    # TODO code cleanup
     special_tokens = set()
     if hasattr(tokenizer, 'pad_token') and tokenizer.pad_token is not None:
         special_tokens.add(tokenizer.pad_token)
