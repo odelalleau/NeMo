@@ -766,7 +766,18 @@ def sample_sequence_batch(
     tokenizer = model.tokenizer
     # initialize the batch
     with torch.no_grad():
-        context_length = context_lengths.min().item()
+        # Generate enough tokens for the longest sequence
+        maxlen = tokens_to_generate + context_lengths.max().item()
+        maxlen = inference_strategy.clip_max_len(maxlen)
+
+        if compute_logprob:
+            # Special case where we do not care about the generated tokens => we can do it in one shot
+            # by starting directly at the end of the longest sequence.
+            assert tokens_to_generate == 1
+            context_length = maxlen - 1
+        else:
+            context_length = context_lengths.min().item()
+
         inference_strategy.init_batch(context_tokens, context_length, compute_attention_mask)
         # added eos_id to support the function generate_samples_eval that passes
         # eos_id as an argument and needs termination when that id id found.
@@ -778,10 +789,6 @@ def sample_sequence_batch(
         tokens = context_tokens
         output_logits = None
         all_generated_indices = None  # used to track all generated indices
-        # Generate enough tokens for the longest sequence
-        maxlen = tokens_to_generate + context_lengths.max().item()
-
-        maxlen = inference_strategy.clip_max_len(maxlen)
 
         lengths = torch.ones([batch_size]).long().cuda() * maxlen
 
