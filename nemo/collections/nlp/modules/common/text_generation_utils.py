@@ -792,7 +792,11 @@ def sample_sequence_batch(
 
         lengths = torch.ones([batch_size]).long().cuda() * maxlen
 
+        import time
+
+        gen_start_time = time.perf_counter()
         while context_length < maxlen:
+            start_time = time.perf_counter()
             if image_list is not None:
                 batch, tensor_shape = inference_strategy.prepare_batch_at_step(
                     tokens, maxlen, micro_batch_size, counter, context_length, compute_attention_mask, image_list
@@ -919,8 +923,14 @@ def sample_sequence_batch(
 
             context_length += 1
             counter += 1
+            if torch.distributed.get_rank() == 0:
+                duration = time.perf_counter() - start_time
+                print(f"Generation time in iteration {counter}: {duration}")
             if done:
                 break
+        if torch.distributed.get_rank() == 0:
+            total_duration = time.perf_counter() - gen_start_time
+            print(f"Total generation time: {total_duration}")
 
 
 def tab_sample_sequence_batch(
