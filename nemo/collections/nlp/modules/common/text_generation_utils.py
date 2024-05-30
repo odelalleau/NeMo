@@ -35,7 +35,7 @@ from nemo.collections.multimodal.data.neva.conversation import (
 from nemo.collections.nlp.modules.common.megatron.utils import get_ltor_masks_and_position_ids
 from nemo.collections.nlp.modules.common.text_generation_strategy import model_inference_strategy_dispatcher
 from nemo.collections.nlp.modules.common.transformer.text_generation import LengthParam, OutputType, SamplingParam
-from nemo.utils import AppState
+from nemo.utils import AppState, logging
 
 try:
     from apex.transformer.pipeline_parallel.utils import _reconfigure_microbatch_calculator
@@ -824,7 +824,14 @@ def sample_sequence_batch(
                 started = context_lengths <= context_length
                 if extra.get('greedy', False):
                     prev = torch.argmax(logits, dim=-1).view(-1)
+                    if torch.distributed.get_rank() == 0:
+                        t = prev.tolist()
+                        txt = [tokenizer.ids_to_text([x]) for x in t]
+                        m = torch.amax(logits, dim=-1).view(-1).tolist()
+                        logging.info(f"generate - {context_length=}, tokens={t}, logits={m}, texts={txt}")
                 else:
+                    if torch.distributed.get_rank() == 0:
+                        logging.info("generate - not using greedy generation")
                     logits = logits.float()
                     logits /= temperature
                     # handle repetition penality
