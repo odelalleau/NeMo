@@ -828,7 +828,9 @@ def sample_sequence_batch(
                         t = prev.tolist()
                         txt = [tokenizer.ids_to_text([x]) for x in t]
                         m = torch.amax(logits, dim=-1).view(-1).tolist()
-                        logging.info(f"generate - {context_length=}, tokens={t}, logits={m}, texts={txt}")
+                        p = "/lustre/fsw/portfolios/llmservice/users/odelalleau/data/src/eval-tool/tmp.log"
+                        with open(p, "a") as writer:
+                            writer.write(f"generate - {context_length=}, tokens={t}, logits={m}, texts={txt}\n")
                 else:
                     if torch.distributed.get_rank() == 0:
                         logging.info("generate - not using greedy generation")
