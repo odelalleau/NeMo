@@ -38,6 +38,7 @@ from nemo.utils import AppState, logging
 __all__ = ['get_pretrained_lm_models_list', 'get_lm_model', 'pad_batch']
 
 
+# TODO rename the `max_len` argument that is not properly named.
 def pad_batch(batch, pad_id, max_len):
     context_lengths = []
     max_context_length = max([len(tokens) for tokens in batch])
