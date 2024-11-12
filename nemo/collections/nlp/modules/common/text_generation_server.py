@@ -174,9 +174,12 @@ class MegatronGenerate(Resource):
         )
         len_strip = len(special_tokens['end_of_turn'] + special_tokens['turn_start'])
         conversation = conversation[:-len_strip]
+        start_time = time.perf_counter()
         # Return a response mimicking the OpenAI ChatCompletion API format
         with lock:  # Need to get lock to keep multiple threads from hitting code
+            lock_time = time.perf_counter()
             MegatronGenerate.send_do_generate()  # Tell other ranks we're doing generate
+            rank_synch_time = time.perf_counter()
             extra = {}
             if self.inference_strategy is not None:
                 extra['strategy'] = self.inference_strategy
@@ -206,9 +209,23 @@ class MegatronGenerate(Resource):
                 random_seed=random_seed,
                 **extra,
             )
+            generate_time = time.perf_counter()
             for k in output:
                 if isinstance(output[k], torch.Tensor):
                     output[k] = output[k].tolist()
+            finalize_time = time.perf_counter()
+
+        stop_time = time.perf_counter()
+        if torch.distributed.get_rank() == 0:
+            logging.info(
+                f"######## Called `chat_completion()` with input:\n{conversation}\n\n"
+                "Timings:\n"
+                f"  - total_time     : {stop_time - start_time:.3f}\n"
+                f"  - lock_time      : {lock_time - start_time:.3f}\n"
+                f"  - rank_synch_time: {rank_synch_time - lock_time:.3f}\n"
+                f"  - generate_time  : {generate_time - rank_synch_time:.3f}\n"
+                f"  - finalize_time  : {finalize_time - generate_time:.3f}\n"
+            )
 
         output_sentence = output['sentences'][0][len(conversation) :]
         tokens = output['tokens'][0]
