@@ -216,22 +216,24 @@ class MegatronGenerate(Resource):
             finalize_time = time.perf_counter()
 
         stop_time = time.perf_counter()
-        if torch.distributed.get_rank() == 0:
-            logging.info(
-                f"######## Called `chat_completion()` with input:\n{conversation}\n\n"
-                "Timings:\n"
-                f"  - total_time     : {stop_time - start_time:.3f}\n"
-                f"  - lock_time      : {lock_time - start_time:.3f}\n"
-                f"  - rank_synch_time: {rank_synch_time - lock_time:.3f}\n"
-                f"  - generate_time  : {generate_time - rank_synch_time:.3f}\n"
-                f"  - finalize_time  : {finalize_time - generate_time:.3f}\n"
-            )
 
         output_sentence = output['sentences'][0][len(conversation) :]
         tokens = output['tokens'][0]
         logprobs = output['logprob'][0] if output['logprob'] is not None else None
         num_prompt_tokens = len(conversation.split())  # @adithyare only produces an approx. number of tokens
         num_output_sentence = len(output_sentence.split())
+
+        if torch.distributed.get_rank() == 0:
+            logging.info(
+                f"######## Called `chat_completion()` with input:\n{conversation}\n\n"
+                f"OUTPUT ({len(output_sentence)} chars):\n{output_sentence}\n\n"
+                "TIMINGS:\n"
+                f"  - total_time     : {stop_time - start_time:.3f}\n"
+                f"  - lock_time      : {lock_time - start_time:.3f}\n"
+                f"  - rank_synch_time: {rank_synch_time - lock_time:.3f}\n"
+                f"  - generate_time  : {generate_time - rank_synch_time:.3f}\n"
+                f"  - finalize_time  : {finalize_time - generate_time:.3f}\n"
+            )
 
         return jsonify(
             {
