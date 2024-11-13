@@ -223,40 +223,41 @@ class MegatronGenerate(Resource):
         num_prompt_tokens = len(conversation.split())  # @adithyare only produces an approx. number of tokens
         num_output_sentence = len(output_sentence.split())
 
+        to_jsonify = {
+            "id": f"chatcmpl-{uuid.uuid4()}",
+            "object": "chat.completion",
+            "created": int(time.time()),
+            "model": data.get("model", "nemo model"),
+            "choices": [
+                {
+                    "index": 0,
+                    "message": {"role": "assistant", "content": output_sentence},
+                    "logprobs": logprobs,
+                    "tokens": tokens,
+                    "finish_reason": "",
+                }
+            ],
+            "usage": {
+                "prompt_tokens": num_prompt_tokens,
+                "completion_tokens": num_output_sentence,
+                "total_tokens": num_output_sentence + num_prompt_tokens,
+            },
+        }
+
         if torch.distributed.get_rank() == 0:
             logging.info(
                 f"######## Called `chat_completion()` with input:\n{conversation}\n\n"
-                f"OUTPUT ({len(output_sentence)} chars - {type(output_sentence)=}):\n{output_sentence}\n\n"
+                f"OUTPUT ({len(output_sentence)} chars):\n{output_sentence}\n\n"
                 "TIMINGS:\n"
                 f"  - total_time     : {stop_time - start_time:.3f}\n"
                 f"  - lock_time      : {lock_time - start_time:.3f}\n"
                 f"  - rank_synch_time: {rank_synch_time - lock_time:.3f}\n"
                 f"  - generate_time  : {generate_time - rank_synch_time:.3f}\n"
                 f"  - finalize_time  : {finalize_time - generate_time:.3f}\n"
+                f"TO_JSONIFY:\n{to_jsonify=}\n"
             )
 
-        return jsonify(
-            {
-                "id": f"chatcmpl-{uuid.uuid4()}",
-                "object": "chat.completion",
-                "created": int(time.time()),
-                "model": data.get("model", "nemo model"),
-                "choices": [
-                    {
-                        "index": 0,
-                        "message": {"role": "assistant", "content": output_sentence},
-                        "logprobs": logprobs,
-                        "tokens": tokens,
-                        "finish_reason": "",
-                    }
-                ],
-                "usage": {
-                    "prompt_tokens": num_prompt_tokens,
-                    "completion_tokens": num_output_sentence,
-                    "total_tokens": num_output_sentence + num_prompt_tokens,
-                },
-            }
-        )
+        return jsonify(to_jsonify)
 
     def post(self):
         # Access the request data if needed
