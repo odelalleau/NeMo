@@ -226,7 +226,7 @@ class MegatronGenerate(Resource):
         if torch.distributed.get_rank() == 0:
             logging.info(
                 f"######## Called `chat_completion()` with input:\n{conversation}\n\n"
-                f"OUTPUT ({len(output_sentence)} chars):\n{output_sentence}\n\n"
+                f"OUTPUT ({len(output_sentence)} chars - {type(output_sentence)=}):\n{output_sentence}\n\n"
                 "TIMINGS:\n"
                 f"  - total_time     : {stop_time - start_time:.3f}\n"
                 f"  - lock_time      : {lock_time - start_time:.3f}\n"
