@@ -217,7 +217,8 @@ class MegatronGenerate(Resource):
 
         stop_time = time.perf_counter()
 
-        output_sentence = output['sentences'][0][len(conversation) :]
+        orig_output = output['sentences'][0]
+        output_sentence = orig_output[len(conversation) :]
         tokens = output['tokens'][0]
         tokens = [t.decode('utf-8', errors='replace') if isinstance(t, bytes) else t for t in tokens]
         logprobs = output['logprob'][0] if output['logprob'] is not None else None
@@ -248,7 +249,8 @@ class MegatronGenerate(Resource):
         if torch.distributed.get_rank() == 0:
             logging.info(
                 f"######## Called `chat_completion()` with input:\n{conversation}\n\n"
-                f"OUTPUT ({len(output_sentence)} chars):\n{output_sentence}\n\n"
+                f"FULL OUTPUT INCLUDING PROMPT:\n{orig_output}\n\n"
+                f"FINAL OUTPUT ({len(output_sentence)} chars):\n{output_sentence}\n\n"
                 "TIMINGS:\n"
                 f"  - total_time     : {stop_time - start_time:.3f}\n"
                 f"  - lock_time      : {lock_time - start_time:.3f}\n"
