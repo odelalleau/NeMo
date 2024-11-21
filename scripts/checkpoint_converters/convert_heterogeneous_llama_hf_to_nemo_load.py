@@ -152,6 +152,8 @@ def convert(args):
         print(f"- {name}")
 
     nemo_config = load_config(args, hf_config)
+    nemo_config.heterogeneous_layers_config_path = os.path.join(args.input_name_or_path, 'config.json')
+    nemo_config.name = "heterogeneous_gpt"
 
     if args.precision in ["32", "16"]:
         precision = int(float(args.precision))

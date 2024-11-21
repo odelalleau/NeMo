@@ -108,7 +108,8 @@ def load_config(args, llama_config):
         nemo_config.tokenizer = tokenizer_dict
 
     if llama_config['rope_scaling'] is not None:
-        if llama_config['rope_scaling']['type'] == 'linear':
+        rope_type = llama_config['rope_scaling'].get('type', llama_config['rope_scaling'].get('rope_type', None))
+        if rope_type == 'linear':
             nemo_config['seq_len_interpolation_factor'] = llama_config['rope_scaling']['factor']
         else:
             raise ValueError("Only linear rope scaling type is supported now")
@@ -146,7 +147,12 @@ def convert(args):
 
 
     megatron_config = HeterogeneousTransformerConfig(
-        heterogeneous_layers_config_path=os.path.join(args.input_name_or_path, 'config.json'))
+        num_layers=nemo_config.num_layers,
+        hidden_size=nemo_config.hidden_size,
+        num_attention_heads=nemo_config.num_attention_heads,
+        use_cpu_initialization=True,
+        heterogeneous_layers_config_path=os.path.join(args.input_name_or_path, 'config.json')
+    )
 
     if args.precision in ["32", "16"]:
         precision = int(float(args.precision))
@@ -288,17 +294,25 @@ def convert(args):
         if not curr_block_parameters.attention.no_op:
             input_ln_weight = model.state_dict()[f'model.layers.{l}.input_layernorm.weight']
             if mcore_gpt:
-                input_ln_base_name = f'model.decoder.layers.{l}.self_attention.linear_qkv.layer_norm_weight'
+                if curr_block_parameters.attention.num_query_groups is not None:
+                    input_ln_base_name = f'model.decoder.layers.{l}.self_attention.linear_qkv.layer_norm_weight' 
+                else:
+                    assert curr_block_parameters.attention.replace_with_linear
+                    input_ln_base_name = f'model.decoder.layers.{l}.input_layernorm.weight'
             else:
-                input_ln_base_name = f'model.language_model.encoder.layers.{l}.input_layernorm.weight'
+                raise NotImplementedError("Only mcore_gpt is supported")
             checkpoint['state_dict'][input_ln_base_name] = param_to_weights(input_ln_weight)
 
         if not curr_block_parameters.mlp.no_op:
             post_attn_ln_weight = model.state_dict()[f'model.layers.{l}.post_attention_layernorm.weight']
             if mcore_gpt:
-                post_attn_ln_base_name = f'model.decoder.layers.{l}.mlp.linear_fc1.layer_norm_weight'
+                if curr_block_parameters.mlp.ffn_hidden_size is not None:
+                    post_attn_ln_base_name = f'model.decoder.layers.{l}.mlp.linear_fc1.layer_norm_weight'
+                else:
+                    assert curr_block_parameters.mlp.replace_with_linear
+                    post_attn_ln_base_name = f'model.decoder.layers.{l}.pre_mlp_layernorm.weight'
             else:
-                post_attn_ln_base_name = f'model.language_model.encoder.layers.{l}.post_attention_layernorm.weight'
+                raise NotImplementedError("Only mcore_gpt is supported")
             checkpoint['state_dict'][post_attn_ln_base_name] = param_to_weights(post_attn_ln_weight)
 
         print(f"done layer {l}")

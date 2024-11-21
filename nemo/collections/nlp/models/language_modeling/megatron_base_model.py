@@ -51,7 +51,7 @@ try:
     from megatron.core import ModelParallelConfig, parallel_state
     from megatron.core.distributed import DistributedDataParallel as McoreDDP
     from megatron.core.transformer.module import Float16Module as MCoreFloat16Module
-    from megatron.core.transformer.transformer_config import TransformerConfig
+    from megatron.core.transformer.transformer_config import TransformerConfig, HeterogeneousTransformerConfig
     from megatron.core.utils import init_method_normal, scaled_init_method_normal
 
     HAVE_MEGATRON_CORE = True
@@ -580,7 +580,12 @@ class MegatronBaseModel(NLPModel):
                     f"Add this key to cfg or config_mapping to make to make it configurable."
                 )
 
-        transformer_config = TransformerConfig(**transformer_config_dict)
+        if "heterogeneous_layers_config_path" in cfg:
+            config_class = HeterogeneousTransformerConfig
+            transformer_config_dict["heterogeneous_layers_config_path"] = cfg["heterogeneous_layers_config_path"]
+        else:
+            config_class = TransformerConfig
+        transformer_config = config_class(**transformer_config_dict)
 
         return transformer_config
 
