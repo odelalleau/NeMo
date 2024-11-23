@@ -219,23 +219,33 @@ class MegatronGenerate(Resource):
                 logprobs = data.get("logprobs", False)
                 random_seed = None
 
-                output = generate(
-                    self.model,
-                    MegatronGenerate.inputs if batching else [conversation],
-                    data.get('max_tokens', 32),
-                    all_probs=all_probs,
-                    temperature=data.get('temperature', 1.0),
-                    add_BOS=add_BOS,
-                    top_k=top_k,
-                    top_p=data.get("top_p", 0.95),
-                    greedy=greedy,
-                    repetition_penalty=1.0,
-                    end_strings=end_strings,
-                    min_tokens_to_generate=0,
-                    compute_logprob=logprobs,
-                    random_seed=random_seed,
-                    **extra,
-                )
+                try:
+                    output = generate(
+                        self.model,
+                        MegatronGenerate.inputs if batching else [conversation],
+                        data.get('max_tokens', 32),
+                        all_probs=all_probs,
+                        temperature=data.get('temperature', 1.0),
+                        add_BOS=add_BOS,
+                        top_k=top_k,
+                        top_p=data.get("top_p", 0.95),
+                        greedy=greedy,
+                        repetition_penalty=1.0,
+                        end_strings=end_strings,
+                        min_tokens_to_generate=0,
+                        compute_logprob=logprobs,
+                        random_seed=random_seed,
+                        **extra,
+                    )
+                except torch.OutOfMemoryError:
+                    batch_inputs = MegatronGenerate.inputs if batching else [conversation]
+                    logging.error(
+                        f"Ran out of memory while processing a batch of size {len(batch_inputs)}: \n"
+                        + "\n".join(f"INPUT #{i} (length: {len(inpt)}): {inpt}" for i, inpt in enumerate(batch_inputs))
+                        + f"\n\nBatch JSON: {json.dumps(batch_inputs)}"
+                    )
+                    raise
+
                 for k in output:
                     if isinstance(output[k], torch.Tensor):
                         output[k] = output[k].tolist()
