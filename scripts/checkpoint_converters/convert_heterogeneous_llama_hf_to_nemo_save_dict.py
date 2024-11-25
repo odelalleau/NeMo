@@ -351,7 +351,7 @@ def convert(args):
         for key in keys:
             checkpoint['state_dict'][key.replace('model.', 'model.module.', 1)] = checkpoint['state_dict'].pop(key)
 
-    # os.mkdir(args.output_path, exist_ok=True)
+    os.makedirs(args.output_path, exist_ok=True)
     for key in checkpoint['state_dict']:
         print(f'Saving {key} in {checkpoint["state_dict"][key].dtype}..')
         save_location = f'{args.output_path}/{key[13:]}.pt'
