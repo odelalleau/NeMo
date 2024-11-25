@@ -23,6 +23,7 @@ Conversion script to convert Huggingface LLaMA checkpoints into nemo checkpoint.
 """
 
 import os
+import shutil
 from argparse import ArgumentParser
 from collections import OrderedDict
 
@@ -55,6 +56,7 @@ def get_args():
         help="Path to Huggingface LLaMA checkpoints",
     )
     parser.add_argument("--output_path", type=str, default=None, required=True, help="Path to output to dict dir")
+    parser.add_argument("--final_nemo_path", type=str, default=None, required=True, help="Path to final .nemo file")
     parser.add_argument(
         "--hparams_file",
         type=str,
@@ -145,13 +147,18 @@ def convert(args):
     nemo_config = load_config(args, hf_config)
     nemo_config.scale_positional_embedding = args.apply_rope_scaling
 
+    # copy config.json to final_nemo_path
+    final_nemo_dir = os.path.dirname(args.final_nemo_path)
+    final_config_path = os.path.join(final_nemo_dir, 'config.json')
+    os.makedirs(final_nemo_dir, exist_ok=True)
+    shutil.copy(os.path.join(args.input_name_or_path, 'config.json'), final_config_path)
 
     megatron_config = HeterogeneousTransformerConfig(
         num_layers=nemo_config.num_layers,
         hidden_size=nemo_config.hidden_size,
         num_attention_heads=nemo_config.num_attention_heads,
         use_cpu_initialization=True,
-        heterogeneous_layers_config_path=os.path.join(args.input_name_or_path, 'config.json')
+        heterogeneous_layers_config_path=final_config_path
     )
 
     if args.precision in ["32", "16"]:
