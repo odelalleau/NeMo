@@ -118,7 +118,7 @@ def load_config(args, llama_config):
 
     if llama_config['rope_scaling'] is not None:
         rope_type = llama_config['rope_scaling'].get('type', llama_config['rope_scaling'].get('rope_type', None))
-        if rope_type == 'linear':
+        if rope_type in ['linear', 'llama3']:
             nemo_config['seq_len_interpolation_factor'] = llama_config['rope_scaling']['factor']
         else:
             raise ValueError("Only linear rope scaling type is supported now")
