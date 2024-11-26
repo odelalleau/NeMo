@@ -181,8 +181,19 @@ class TiktokenTokenizer(TokenizerSpec):
 
         # return tokens
 
-    def tokens_to_text(self, tokens: List[str]) -> str:
-        return ''.join(tokens)
+    def tokens_to_text(
+        self,
+        tokens: List[str],
+        skip_special_tokens: bool = False,
+        skip_bos_token: bool = True,
+        skip_eos_token: bool = True,
+    ) -> str:
+        return self.ids_to_text(
+            self.tokens_to_ids(tokens),
+            skip_special_tokens=skip_special_tokens,
+            skip_bos_token=skip_bos_token,
+            skip_eos_token=skip_eos_token,
+        )
 
     def token_to_id(self, token):
         token_str = token.decode('utf-8', errors='replace') if isinstance(token, bytes) else token
