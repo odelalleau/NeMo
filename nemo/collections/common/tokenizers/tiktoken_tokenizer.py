@@ -222,8 +222,7 @@ class TiktokenTokenizer(TokenizerSpec):
             if id_ < self.num_special_tokens:
                 if chunks:
                     # Decode the chunk and append resulting tokens
-                    decoded_chunk = self.tokenizer.decode([t - self.num_special_tokens for t in chunks])
-                    tokens.extend(decoded_chunk.split())  # Split into individual tokens
+                    tokens += self._ids_to_tokens_core([t - self.num_special_tokens for t in chunks])
                     chunks = []
                 # Add the special token directly
                 tokens.append(self.special_tokens[id_])
@@ -232,8 +231,46 @@ class TiktokenTokenizer(TokenizerSpec):
                 chunks.append(id_)
         if chunks:
             # Decode any remaining chunk
-            decoded_chunk = self.tokenizer.decode([t - self.num_special_tokens for t in chunks])
-            tokens.extend(decoded_chunk.split())
+            tokens += self._ids_to_tokens_core([t - self.num_special_tokens for t in chunks])
+        return tokens
+
+    def _ids_to_tokens_core(self, ids: List[int]) -> List[str]:
+        """
+        Core implementation of `ids_to_tokens()`.
+
+        Here the input `ids` are assume to be already shifted by `num_special_tokens` (and thus
+        not to contain any special token).
+        """
+        tokens_bytes = self.tokenizer.decode_tokens_bytes(ids)
+        tokens = []
+        idx = 0
+        while idx < len(tokens_bytes):
+            try:
+                # The most common case is typically that we can decode the token ID directly
+                # into a UTF-8 string.
+                tokens.append(tokens_bytes[idx].decode("utf-8", errors="strict"))
+                idx += 1
+            except UnicodeDecodeError:
+                # If this fails, it may mean several things:
+                #   1. (Most likely) This token spans multiple token IDs due to multi-byte UTF-8 encoding.
+                #   2. (Less likely) somehow the input IDs lead to "invalid" UTF-8.
+                # Although it would be possible to explicitly check byte values for multi-byte UTF-8 encoding
+                # being spread across multiple token IDs, here we choose a simpler (albeit less efficient in
+                # at least some situations) implementation where we incrementally add bytes obtained from other
+                # token IDs until a valid decoding is obtained.
+                # If no valid decoding can be obtained, this token is skipped.
+                start_idx = idx
+                while idx < len(tokens_bytes):
+                    idx += 1
+                    candidate_bytes = b"".join(tokens_bytes[start_idx:idx])
+                    try:
+                        tokens.append(candidate_bytes.decode("utf-8", errors="strict"))
+                        break
+                    except UnicodeDecodeError:
+                        continue
+                else:  # NB: this is the `else:` from `while`, not from `try...except`
+                    # Failed to find a valid candidate => skip current token.
+                    idx = start_idx + 1
         return tokens
 
     def text_to_ids(self, text: str) -> List[int]:
