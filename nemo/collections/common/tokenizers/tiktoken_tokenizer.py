@@ -139,46 +139,47 @@ class TiktokenTokenizer(TokenizerSpec):
         Returns:
             List[str]: A list of token strings.
         """
-        tokens = []
-        special_token_pattern = SPECIAL_TOKEN_TEMPLATE.format(id=r"\d+")
+        return self.ids_to_tokens(self.text_to_ids(text))
+        # tokens = []
+        # special_token_pattern = SPECIAL_TOKEN_TEMPLATE.format(id=r"\d+")
 
-        # Define a regex pattern to split the text into parts:
-        # 1. Special tokens (e.g., <SPECIAL_10>, <s>, </s>, <unk>)
-        # 2. Contiguous non-ASCII substrings (e.g., Chinese phrases)
-        # 3. Regular ASCII substrings
-        pattern = f"({special_token_pattern}|<unk>|<s>|</s>|[^\x00-\x7F]+)"
+        # # Define a regex pattern to split the text into parts:
+        # # 1. Special tokens (e.g., <SPECIAL_10>, <s>, </s>, <unk>)
+        # # 2. Contiguous non-ASCII substrings (e.g., Chinese phrases)
+        # # 3. Regular ASCII substrings
+        # pattern = f"({special_token_pattern}|<unk>|<s>|</s>|[^\x00-\x7F]+)"
 
-        # Split the text based on the pattern
-        parts = re.split(pattern, text)
+        # # Split the text based on the pattern
+        # parts = re.split(pattern, text)
 
-        for part in parts:
-            if not part:
-                continue  # Skip empty strings
+        # for part in parts:
+        #     if not part:
+        #         continue  # Skip empty strings
 
-            # Check if the part is a special token
-            if re.match(special_token_pattern, part) or part in self.special_tokens:
-                tokens.append(part)  # Append special tokens as strings
-            # Check if the part contains non-ASCII characters
-            elif re.match(r"[^\x00-\x7F]+", part):
-                tokens.append(part)  # Append non-ASCII substrings as single tokens
-            else:
-                # Encode the regular ASCII part into token IDs
-                token_ids = self.tokenizer.encode(part)
+        #     # Check if the part is a special token
+        #     if re.match(special_token_pattern, part) or part in self.special_tokens:
+        #         tokens.append(part)  # Append special tokens as strings
+        #     # Check if the part contains non-ASCII characters
+        #     elif re.match(r"[^\x00-\x7F]+", part):
+        #         tokens.append(part)  # Append non-ASCII substrings as single tokens
+        #     else:
+        #         # Encode the regular ASCII part into token IDs
+        #         token_ids = self.tokenizer.encode(part)
 
-                # Decode each token ID back into its string representation
-                for token_id in token_ids:
-                    token_str = self.id2token.get(token_id, "<unk>")
+        #         # Decode each token ID back into its string representation
+        #         for token_id in token_ids:
+        #             token_str = self.id2token.get(token_id, "<unk>")
 
-                    # If token_str is bytes, decode it to a string
-                    if isinstance(token_str, bytes):
-                        try:
-                            token_str = token_str.decode('utf-8')
-                        except UnicodeDecodeError:
-                            token_str = "<unk>"  # Replace undecodable bytes
+        #             # If token_str is bytes, decode it to a string
+        #             if isinstance(token_str, bytes):
+        #                 try:
+        #                     token_str = token_str.decode('utf-8')
+        #                 except UnicodeDecodeError:
+        #                     token_str = "<unk>"  # Replace undecodable bytes
 
-                    tokens.append(token_str)  # Append the decoded string
+        #             tokens.append(token_str)  # Append the decoded string
 
-        return tokens
+        # return tokens
 
     def tokens_to_text(self, tokens: List[str]) -> str:
         return ''.join(tokens)
