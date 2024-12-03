@@ -166,13 +166,15 @@ def get_specs(spec_name, transformer_config=None, use_te=True, hyena_cfg: Dict =
     name_spec_dict = {
         "": get_gpt_layer_local_spec(num_experts, moe_grouped_gemm),
         "te_gpt": get_gpt_layer_with_transformer_engine_spec(num_experts, moe_grouped_gemm, fp8=fp8),
-        "heterogeneous_gpt": get_gpt_heterogeneous_layer_spec(config=transformer_config, use_te=use_te),
         "megatron_falcon_gpt": get_falcon_layer_spec(),
         "megatron_gemma2": get_gemma2_layer_spec(),
         "megatron_gpt_full_te_layer_autocast": get_gpt_full_te_layer_autocast_spec(transformer_config),
         "modelopt": get_gpt_layer_modelopt_spec(num_experts),
         "te_gpt_hyena": get_gpt_layer_with_te_and_hyena_spec(hyena_cfg),
     }
+    if transformer_config.heterogeneous_block_specs:
+        name_spec_dict["heterogeneous_gpt"] = get_gpt_heterogeneous_layer_spec(config=transformer_config, use_te=use_te)
+
     if spec_name not in name_spec_dict:
         raise ValueError(f"Spec name '{spec_name}' is not recognized.")
     return name_spec_dict[spec_name]
