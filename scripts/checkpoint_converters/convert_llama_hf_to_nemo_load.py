@@ -80,6 +80,7 @@ def get_args():
         help="Path config for restoring. It's created during training and may need to be modified during restore if restore environment is different than training. Ex: /raid/nemo_experiments/megatron_gpt/hparams.yaml",
     )
     parser.add_argument("--precision", type=str, default="16", help="Model precision")
+    parser.add_argument('--pack_nemo_file', action='store_true')
     args = parser.parse_args()
     return args
 
@@ -253,6 +254,7 @@ def convert(args):
     print(f'Model save took {time.perf_counter() - st} sec.')
 
     model._save_restore_connector = NLPSaveRestoreConnector()
+    model._save_restore_connector.pack_nemo_file = args.pack_nemo_file
 
     # We make sure that the tokenizer can be instantiated later regardless of args.input_name_or_path
     if 'tokenizer_model' not in hf_config:

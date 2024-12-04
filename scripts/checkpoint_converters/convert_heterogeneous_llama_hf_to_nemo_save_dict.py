@@ -148,7 +148,7 @@ def convert(args):
     nemo_config.scale_positional_embedding = args.apply_rope_scaling
 
     # copy config.json to final_nemo_path
-    final_nemo_dir = os.path.dirname(args.final_nemo_path)
+    final_nemo_dir = args.final_nemo_path if os.path.isdir(args.final_nemo_path) else os.path.dirname(args.final_nemo_path)
     final_config_path = os.path.join(final_nemo_dir, 'config.json')
     os.makedirs(final_nemo_dir, exist_ok=True)
     shutil.copy(os.path.join(args.input_name_or_path, 'config.json'), final_config_path)
