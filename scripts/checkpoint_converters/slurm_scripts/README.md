@@ -10,13 +10,18 @@ This script is designed for converting HuggingFace models into either NeMo or Me
      - Megatron-LM fork: [megatron-lm-aim](https://gitlab-master.nvidia.com/deci/research/megatron-lm-aim)
         - (verified with commit `ec43d612`)
    - Both repositories must be on a branch that supports heterogeneous models.
+   - It also requires modelopt with Asha's branch:
+     - modelopt repo: [modelopt](https://gitlab-master.nvidia.com/omniml/modelopt). 
+       - branch aanoosheh/pytorch-pp-teacher
+
 
 2. **Directory Structure**:
-   - Place the forks of NeMo and Megatron-LM in the same parent directory:
+   - Place modelopt + the forks of NeMo and Megatron-LM in the same parent directory:
      ```
      parent_directory/
      ├── nemo-aim/
-     └── megatron-lm-aim/
+     ├── megatron-lm-aim/
+     └── modelopt/
      ```
 
 ## Usage
@@ -25,8 +30,10 @@ This script is designed for converting HuggingFace models into either NeMo or Me
 
 - `--hf_checkpoint`: Path to the HuggingFace checkpoint directory.
 - `--output_dir`: Directory where the converted model will be saved.
-- `--pack_nemo_file`: (Optional) Flag to save the converted model as a `.nemo` file (NeMo format). Exclude this flag for megatron-lm format.
+- `--output_format`: Specifies the format in which the converted checkpoint will be saved. Options are nemo or megatron
 - `--homogeneous_model`: (Optional) Use the original conversion scripts for homogeneous models. Exclude this flag for heterogeneous models.
+- `--megatron_pp_size` pipeline parallel size when saving the checkpoint in megatron format (Default: 1)
+- `--megatron_tp_size` tensor parallel size when saving the checkpoint in megatron format (Default: 1)
 
 ### Examples
 
@@ -34,13 +41,16 @@ This script is designed for converting HuggingFace models into either NeMo or Me
 ```bash
 bash scripts/checkpoint_converters/slurm_scripts/launch_conversion_job.sh \
     --hf_checkpoint /lustre/fsw/portfolios/coreai/users/itlevy/hf_repos/RC12_3_new \
-    --output_dir /lustre/fsw/portfolios/coreai/projects/coreai_nvfm_llm/models/megatron_conversion/RC12_3
+    --output_dir /lustre/fsw/portfolios/coreai/projects/coreai_nvfm_llm/models/megatron_conversion/RC12_3 \
+    --output_format megatron \
+    --megatron_pp_size 2 \
+    --megatron_tp_size 1
 ```
 #### Convert a homogeneous HuggingFace model to a .nemo file
 ```bash
 bash scripts/checkpoint_converters/slurm_scripts/launch_conversion_job.sh \
     --hf_checkpoint /lustre/fsw/portfolios/coreai/projects/coreai_nvfm_llm/models/meta-llama/Meta-Llama-3.1-70B-Instruct-HF \
     --output_dir /lustre/fsw/portfolios/coreai/projects/coreai_nvfm_llm/models/megatron_conversion/Llama-3.1-70B-Instruct-NeMo \
-    --pack_nemo_file \
+    --output_format nemo \
     --homogeneous_model
 ```
