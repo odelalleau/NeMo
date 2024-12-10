@@ -4,14 +4,17 @@ source $(dirname $0)/argparse.bash || exit 1
 argparse "$@" <<EOF || exit 1
 parser.add_argument('--hf_checkpoint', type=str)
 parser.add_argument('--output_dir', type=str)
-parser.add_argument('--pack_nemo_file', action='store_true')
+parser.add_argument('--output_format', choices=["megatron", "nemo"], required=True, type=str)
 parser.add_argument('--homogeneous_model', action='store_true')
+parser.add_argument('--megatron_pp_size', type=int, default=1)
+parser.add_argument('--megatron_tp_size', type=int, default=1)
 EOF
 
 
 MY_DIR=/lustre/fsw/portfolios/coreai/users/${USER}
 NEMO_DIR=${MY_DIR}/repos/megatron/nemo-aim
 MLM_DIR=${MY_DIR}/repos/megatron/megatron-lm-aim
+MODELOPT_DIR=${MY_DIR}/repos/megatron/modelopt
 
 CONTAINER_REPOS_DIR=/opt
 LOGS_DIR=$MY_DIR/slurm_logs
@@ -30,8 +33,10 @@ ENV_VARS_ARRAY=(
   "HF_HOME=$MY_DIR/hf_cache"
   "HF_CHECKPOINT=$HF_CHECKPOINT"
   "OUTPUT_DIR=$OUTPUT_DIR"
-  "PACK_NEMO_FILE=$PACK_NEMO_FILE"
+  "OUTPUT_FORMAT=$OUTPUT_FORMAT"
   "HOMOGENEOUS_MODEL=$HOMOGENEOUS_MODEL"
+  "MEGATRON_PP_SIZE=$MEGATRON_PP_SIZE"
+  "MEGATRON_TP_SIZE=$MEGATRON_TP_SIZE"
 )
 # Join the array into a single string with commas
 ENV_VARS=$(IFS=,; echo "${ENV_VARS_ARRAY[*]}")
@@ -45,7 +50,7 @@ submit_job \
     --image=${IMAGE_PATH} \
     --name=${JOB_NAME} \
     --logroot=${LOGS_DIR}/${JOB_TYPE} \
-    --mounts ${NEMO_DIR}:${CONTAINER_REPOS_DIR}/NeMo,${MLM_DIR}:${CONTAINER_REPOS_DIR}/megatron-lm,/lustre:/lustre \
+    --mounts ${NEMO_DIR}:${CONTAINER_REPOS_DIR}/NeMo,${MLM_DIR}:${CONTAINER_REPOS_DIR}/megatron-lm,${MODELOPT_DIR}:${CONTAINER_REPOS_DIR}/modelopt,/lustre:/lustre \
     --email_mode='always' \
     --notify_on_start  \
     --notification_method='slack' \
