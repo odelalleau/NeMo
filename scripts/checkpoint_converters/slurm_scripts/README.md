@@ -8,7 +8,7 @@ This script is designed for converting HuggingFace models into either NeMo or Me
    - The script requires our custom forks of NeMo and Megatron-LM:
      - NeMo fork: [nemo-aim](https://gitlab-master.nvidia.com/deci/research/nemo-aim)
      - Megatron-LM fork: [megatron-lm-aim](https://gitlab-master.nvidia.com/deci/research/megatron-lm-aim)
-        - (verified with commit `ec43d612`)
+        - branch deci/uptraining
    - Both repositories must be on a branch that supports heterogeneous models.
    - It also requires modelopt with Asha's branch:
      - modelopt repo: [modelopt](https://gitlab-master.nvidia.com/omniml/modelopt). 

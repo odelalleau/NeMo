@@ -29,6 +29,10 @@ done
 
 if [[ "$OUTPUT_FORMAT" == "nemo" ]]; then
     OUTPUT_FORMAT_NAME="NeMo"
+    if [[ $MEGATRON_TP_SIZE -nq 1 || $MEGATRON_PP_SIZE -nq 1 ]]; then
+        echo "Assertion failed: MEGATRON_TP_SIZE or MEGATRON_PP_SIZE variables are not equal to 1, which is a must for nemo conversion"
+        exit 1
+    fi
 else
     OUTPUT_FORMAT_NAME="Megatron"
 fi
@@ -38,21 +42,23 @@ mkdir -p ${FINAL_OUTPUT_DIR}
 # OUTPUT_FILE="${FINAL_OUTPUT_DIR}/model.nemo"
 INTERMEDIATE_OUTPUT_DIR="${OUTPUT_DIR}/files_per_weight"
 
+if [[ ${HOMOGENEOUS_MODEL:-} ]]; then
+    echo "Converting homogeneous model"
+    SAVE_DICT_SCRIPT="scripts/checkpoint_converters/convert_llama_hf_to_nemo_save_dict.py"
+    SAVE_DICT_FINAL_DIR_STR=""
+    NEMO_LOAD_SCRIPT="scripts/checkpoint_converters/convert_llama_hf_to_nemo_load.py"
+else
+    echo "Converting heterogeneous model"
+    SAVE_DICT_SCRIPT="scripts/checkpoint_converters/convert_heterogeneous_llama_hf_to_nemo_save_dict.py"
+    SAVE_DICT_FINAL_DIR_STR="--final_nemo_path ${FINAL_OUTPUT_DIR}"
+    NEMO_LOAD_SCRIPT="scripts/checkpoint_converters/convert_heterogeneous_llama_hf_to_nemo_load.py"
+fi
+
 if [ -d "$INTERMEDIATE_OUTPUT_DIR" ] && [ "$(ls -A "$INTERMEDIATE_OUTPUT_DIR")" ]; then
     echo "$INTERMEDIATE_OUTPUT_DIR is not empty, skipping saving individual weight files"
+    cp ${HF_CHECKPOINT}/config.json ${FINAL_OUTPUT_DIR}/ 
 else
     mkdir -p ${INTERMEDIATE_OUTPUT_DIR}
-    if [[ ${HOMOGENEOUS_MODEL:-} ]]; then
-        echo "Converting homogeneous model"
-        SAVE_DICT_SCRIPT="scripts/checkpoint_converters/convert_llama_hf_to_nemo_save_dict.py"
-        SAVE_DICT_FINAL_DIR_STR=""
-        NEMO_LOAD_SCRIPT="scripts/checkpoint_converters/convert_llama_hf_to_nemo_load.py"
-    else
-        echo "Converting heterogeneous model"
-        SAVE_DICT_SCRIPT="scripts/checkpoint_converters/convert_heterogeneous_llama_hf_to_nemo_save_dict.py"
-        SAVE_DICT_FINAL_DIR_STR="--final_nemo_path ${FINAL_OUTPUT_DIR}"
-        NEMO_LOAD_SCRIPT="scripts/checkpoint_converters/convert_heterogeneous_llama_hf_to_nemo_load.py"
-    fi
 
     python $SAVE_DICT_SCRIPT \
         --input_name_or_path ${HF_CHECKPOINT} \
