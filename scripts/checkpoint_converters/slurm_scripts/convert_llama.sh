@@ -27,9 +27,9 @@ for var_name in "${required_env_vars[@]}"; do
     fi
 done
 
-if [[ "$OUTPUT_FORMAT" == "nemo" ]]; then
+if [[ "${OUTPUT_FORMAT}" == "nemo" ]]; then
     OUTPUT_FORMAT_NAME="NeMo"
-    if [[ $MEGATRON_TP_SIZE -nq 1 || $MEGATRON_PP_SIZE -nq 1 ]]; then
+    if [[ $MEGATRON_TP_SIZE -ne 1 || $MEGATRON_PP_SIZE -ne 1 ]]; then
         echo "Assertion failed: MEGATRON_TP_SIZE or MEGATRON_PP_SIZE variables are not equal to 1, which is a must for nemo conversion"
         exit 1
     fi
