@@ -2,6 +2,7 @@ huggingface_hub>=0.24
 numba
 numpy>=1.22
 onnx>=1.7.0
+protobuf==3.20.3
 python-dateutil
 ruamel.yaml
 scikit-learn
@@ -10,5 +11,6 @@ tensorboard
 text-unidecode
 torch
 tqdm>=4.41.0
+triton>=3.1.0; sys_platform == 'linux'
 wget
 wrapt
