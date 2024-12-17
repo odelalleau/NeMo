@@ -118,9 +118,15 @@ def load_config(args, llama_config):
         nemo_config.tokenizer = tokenizer_dict
 
     if llama_config['rope_scaling'] is not None:
-        rope_type = llama_config['rope_scaling'].get('type', llama_config['rope_scaling'].get('rope_type', None))
-        if rope_type in ['linear', 'llama3']:
+        rope_type = llama_config['rope_scaling'].get('rope_type')
+        if rope_type is None:
+            rope_type = llama_config['rope_scaling'].get('type')
+
+        if rope_type in ('linear',):
             nemo_config['seq_len_interpolation_factor'] = llama_config['rope_scaling']['factor']
+        elif rope_type == 'llama3':
+            # Llama3 in HF actually means rope scaling for llama 3.1+, which uses custom scaling
+            nemo_config['seq_len_interpolation_factor'] = None
         else:
             raise ValueError("Only linear rope scaling type is supported now")
     if llama_config['rope_theta'] is not None:
