@@ -330,7 +330,7 @@ class TensorRTLLM(ITritonDeployable):
                     from megatron.core.export.export_config import ExportConfig
                     from megatron.core.export.model_type import ModelType
                     from megatron.core.export.trtllm.model_to_trllm_mapping.default_conversion_dict import (
-                        DEFAULT_CONVERSION_DICT,
+                        DEFAULT_CONVERSION_DICT, NEMOTRON_NAS_CONVERSION_DICT
                     )
                     from megatron.core.export.trtllm.trtllm_helper import TRTLLMHelper
                     from tensorrt_llm.layers import MoeConfig
@@ -341,6 +341,10 @@ class TensorRTLLM(ITritonDeployable):
 
                     # MCore export supports some default conversion dictionaries
                     mcore_model_conversion_dict = DEFAULT_CONVERSION_DICT
+                    if input_model_type == ModelType.nemotron_nas:
+                        # nemotron_nas uses different naming in MLPs and also has linear replacement layers
+                        mcore_model_conversion_dict.update(NEMOTRON_NAS_CONVERSION_DICT)
+
                     # All Mcore conversion dicts start with "decoder.layers.4.blah.blah" , while nemo models start with "model.decoder.layers.4.blahblah". so we append model. to the keys
                     nemo_model_conversion_dict = {
                         f'model.{key}': value for key, value in mcore_model_conversion_dict.items()
@@ -379,7 +383,7 @@ class TensorRTLLM(ITritonDeployable):
                             model_state_dict=model,
                             export_config=export_config,
                             dtype=input_dtype,
-                            state_dict_split_by_layer_numbers=False,
+                            state_dict_split_by_layer_numbers=(input_model_type == ModelType.nemotron_nas),
                         )
                     )
 
@@ -486,8 +490,10 @@ class TensorRTLLM(ITritonDeployable):
 
     def get_transformer_config(self, nemo_model_config):
         """Given nemo model config get transformer config"""
-        from megatron.core.transformer.transformer_config import TransformerConfig
+        from megatron.core.transformer.transformer_config import TransformerConfig, HeterogeneousTransformerConfig
 
+        config_class = HeterogeneousTransformerConfig if "heterogeneous_layers_config_path" in nemo_model_config else TransformerConfig
+        
         normalization = nemo_model_config.get('normalization', 'layernorm')
         transformer_config_normalization = 'LayerNorm'
         layernorm_zero_centered_gamma = False
@@ -496,7 +502,7 @@ class TensorRTLLM(ITritonDeployable):
         elif normalization == 'rmsnorm':
             transformer_config_normalization = 'RMSNorm'
 
-        conf = TransformerConfig(
+        conf = config_class(
             num_layers=nemo_model_config.get('num_layers'),
             moe_router_topk=nemo_model_config.get('moe_router_topk', 0),
             num_attention_heads=nemo_model_config.get('num_attention_heads'),
@@ -509,6 +515,7 @@ class TensorRTLLM(ITritonDeployable):
             num_moe_experts=nemo_model_config.get('num_moe_experts', None),
             normalization=transformer_config_normalization,
             layernorm_zero_centered_gamma=layernorm_zero_centered_gamma,
+            heterogeneous_layers_config_path=nemo_model_config.get('heterogeneous_layers_config_path', None),
         )
         return conf
 
@@ -1080,7 +1087,7 @@ class TensorRTLLM(ITritonDeployable):
     def get_supported_models_list(self):
         """Supported model list"""
         # gpt and gptnext are the same. Keeping the gptnext due to backward compatibility.
-        return ["gpt", "gptnext", "llama", "falcon", "starcoder", "mixtral", "gemma"]
+        return ["gpt", "gptnext", "llama", "falcon", "starcoder", "mixtral", "gemma", "nemotron_nas"]
 
     @property
     def get_hidden_size(self):
