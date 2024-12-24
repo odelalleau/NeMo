@@ -491,8 +491,12 @@ class TensorRTLLM(ITritonDeployable):
     def get_transformer_config(self, nemo_model_config):
         """Given nemo model config get transformer config"""
         from megatron.core.transformer.transformer_config import TransformerConfig, HeterogeneousTransformerConfig
-
-        config_class = HeterogeneousTransformerConfig if "heterogeneous_layers_config_path" in nemo_model_config else TransformerConfig
+        if "heterogeneous_layers_config_path" in nemo_model_config:
+            config_class = HeterogeneousTransformerConfig  
+            additional_kwargs = {"heterogeneous_layers_config_path": nemo_model_config["heterogeneous_layers_config_path"]}
+        else: 
+            config_class = TransformerConfig
+            additional_kwargs = {}
         
         normalization = nemo_model_config.get('normalization', 'layernorm')
         transformer_config_normalization = 'LayerNorm'
@@ -501,7 +505,7 @@ class TensorRTLLM(ITritonDeployable):
             layernorm_zero_centered_gamma = True
         elif normalization == 'rmsnorm':
             transformer_config_normalization = 'RMSNorm'
-
+        
         conf = config_class(
             num_layers=nemo_model_config.get('num_layers'),
             moe_router_topk=nemo_model_config.get('moe_router_topk', 0),
@@ -515,7 +519,7 @@ class TensorRTLLM(ITritonDeployable):
             num_moe_experts=nemo_model_config.get('num_moe_experts', None),
             normalization=transformer_config_normalization,
             layernorm_zero_centered_gamma=layernorm_zero_centered_gamma,
-            heterogeneous_layers_config_path=nemo_model_config.get('heterogeneous_layers_config_path', None),
+            **additional_kwargs
         )
         return conf
 
