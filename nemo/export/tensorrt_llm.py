@@ -59,6 +59,7 @@ from nemo.export.trt_llm.tensorrt_llm_run import (
     unload_engine,
 )
 from nemo.export.trt_llm.utils import is_rank
+from megatron.core.export.model_type import ModelType
 
 use_deploy = True
 try:
@@ -328,7 +329,6 @@ class TensorRTLLM(ITritonDeployable):
                 if use_mcore_path:
                     from megatron.core.export.data_type import DataType
                     from megatron.core.export.export_config import ExportConfig
-                    from megatron.core.export.model_type import ModelType
                     from megatron.core.export.trtllm.model_to_trllm_mapping.default_conversion_dict import (
                         DEFAULT_CONVERSION_DICT, NEMOTRON_NAS_CONVERSION_DICT
                     )
@@ -349,7 +349,6 @@ class TensorRTLLM(ITritonDeployable):
                     nemo_model_conversion_dict = {
                         f'model.{key}': value for key, value in mcore_model_conversion_dict.items()
                     }
-
                     trtllm_helper = TRTLLMHelper(
                         transformer_config=transformer_config,
                         model_type=input_model_type,
@@ -746,16 +745,19 @@ class TensorRTLLM(ITritonDeployable):
         elif storage_dtype == torch.float16:
             return DataType.float16
 
-    def get_nemo_to_trtllm_conversion_dict(self, model_state_dict):
+    def get_nemo_to_trtllm_conversion_dict(self, model_state_dict, model_type=None):
         """MCore export supports some default conversion dictionaries
         All Mcore conversion dicts start with "decoder.layers.4.blah.blah" , while nemo models sometimes start with "model.decoder.layers.4.blahblah". so we append model prefix. to the keys
         """
-        from megatron.core.export.trtllm.model_to_trllm_mapping.default_conversion_dict import DEFAULT_CONVERSION_DICT
+        from megatron.core.export.trtllm.model_to_trllm_mapping.default_conversion_dict import DEFAULT_CONVERSION_DICT, NEMOTRON_NAS_CONVERSION_DICT
 
         model_prefix, _ = get_layer_prefix(layer_names=model_state_dict.keys(), is_mcore=True)
-
+        conversion_dict = DEFAULT_CONVERSION_DICT.copy()
+        
+        if model_type == ModelType.nemotron_nas:
+            conversion_dict.update(NEMOTRON_NAS_CONVERSION_DICT)
         nemo_model_conversion_dict = {}
-        for key, value in DEFAULT_CONVERSION_DICT.items():
+        for key, value in conversion_dict.items():
             if 'layers' in key and model_prefix:
                 nemo_model_conversion_dict[f'{model_prefix}.{key}'] = value
             else:
@@ -800,8 +802,7 @@ class TensorRTLLM(ITritonDeployable):
             transformer_config = self.get_transformer_config(model_config)
             input_model_type = getattr(ModelType, model_type)
 
-            nemo_model_conversion_dict = self.get_nemo_to_trtllm_conversion_dict(model_state_dict)
-
+            nemo_model_conversion_dict = self.get_nemo_to_trtllm_conversion_dict(model_state_dict, input_model_type)
             self.trtllm_helper = TRTLLMHelper(
                 transformer_config=transformer_config,
                 model_type=input_model_type,
@@ -904,8 +905,9 @@ class TensorRTLLM(ITritonDeployable):
             storage_dtype = torch_dtype_from_precision(model_config.precision)
 
             model_state_dict = self.gather_and_reshard_model(model_config, model, storage_dtype)
-
-            nemo_model_conversion_dict = self.get_nemo_to_trtllm_conversion_dict(model_state_dict)
+            input_model_type = getattr(ModelType, self.model_type)
+            nemo_model_conversion_dict = self.get_nemo_to_trtllm_conversion_dict(model_state_dict, model_type=input_model_type)
+            
             self.trtllm_helper.weights_converter.convert(
                 model_state_dict=model_state_dict,
                 tokenizer_vocab_size=self.tokenizer.vocab_size,
