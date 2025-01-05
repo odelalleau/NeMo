@@ -70,7 +70,7 @@ def get_layer_prefix(layer_names, is_mcore):
     transformer_layer_prefix = None
 
     for layer_name in layer_names:
-        if not layer_name.startswith('optimizer') and 'self_attention' in layer_name:
+        if not layer_name.startswith('optimizer') and ('self_attention' in layer_name or 'mlp' in layer_name):
             transformer_layer_prefix = layer_name.split('layers')[0]
             break
     assert transformer_layer_prefix is not None, f"Cannot extract transformer layer prefix from {layer_name}"

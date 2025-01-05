@@ -151,8 +151,10 @@ class MegatronDistributedFusedAdam(DistributedFusedAdam):
 
         # Make sure params are in consistent format (list of param group dicts)
         param_groups = list(params)
-        assert param_groups
-        if not isinstance(param_groups[0], dict):
+        # assert param_groups
+        if not param_groups:
+            param_groups = [{'params': []}]
+        elif not isinstance(param_groups[0], dict):
             param_groups = [{'params': param_groups}]
 
         # Construct distributed optimizer
