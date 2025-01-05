@@ -731,7 +731,141 @@ class TensorRTLLM(ITritonDeployable):
                 model_state_dict[key] = tensor
 
         return model_state_dict
+    
+    def gather_and_reshard_model_heterogenous(self, model_config, model, storage_dtype):
+        """
+        Reshard model (i.e) gather all pp ranks for heterogeneous architecture if required 
+        and return the final model state dict
+        """
+        from megatron.core import parallel_state
 
+        tp_size = parallel_state.get_tensor_model_parallel_world_size()
+        pp_rank = parallel_state.get_pipeline_model_parallel_rank()
+        pp_size = parallel_state.get_pipeline_model_parallel_world_size()
+        pp_group = parallel_state.get_pipeline_model_parallel_group()
+        vp_size = parallel_state.get_virtual_pipeline_model_parallel_world_size()
+        if not vp_size:
+            vp_size = 1
+
+        inference_tp_size = self.tp_size
+        inference_pp_size = self.pp_size
+        reshard_model = False
+        if inference_tp_size != tp_size or inference_pp_size != pp_size:
+            LOGGER.info("Training/Generation model parallelism resharding enabled")
+            if inference_pp_size == 1 and pp_size > 1 and inference_tp_size == tp_size and vp_size == 1:
+                reshard_model = True
+            else:
+                raise NotImplementedError(
+                    "NeMo currently only supports PP>1 -> PP=1, inference_TP == TP, and VP=1 resharding of heterogeneous models, "
+                    "other types of resharding will come in future releases."
+                )
+
+        local_state_dict = {k: v for k, v in model.state_dict().items() if torch.is_tensor(v)}
+        
+        if not reshard_model:
+            return local_state_dict
+
+        def get_local_layer_index(parameter_name):
+            """
+            Returns the integer after 'layers.' in a parameter name,
+            e.g. 'decoder.layers.3.self_attn.weight' -> 3.
+            """
+            split_key = parameter_name.split(".")
+            for i, token in enumerate(split_key):
+                if token == "layers":
+                    return int(split_key[i + 1])
+            raise ValueError(f"Unknown layer name format: {parameter_name}")
+
+        def rename_layer_index(parameter_name, new_index):
+            """
+            Replaces the local layer index in 'parameter_name' with 'new_index'.
+            E.g. 'decoder.layers.0.some_weight' -> 'decoder.layers.7.some_weight'.
+            """
+            split_key = parameter_name.split(".")
+            for i, token in enumerate(split_key):
+                if token == "layers":
+                    split_key[i + 1] = str(new_index)
+                    break
+            return ".".join(split_key)
+
+        def unify_layer_indices(local_state_dict, pipeline_rank, layers_per_partition):
+            """
+            Remap all 'layers.X' to 'layers.(X + pipeline_rank * layers_per_partition)'.
+            Non-layer parameters (like embeddings) remain unchanged.
+            """
+            unified = {}
+            for param_name, param_tensor in local_state_dict.items():
+                if "layers" in param_name:
+                    local_idx = get_local_layer_index(param_name)
+                    global_idx = local_idx + pipeline_rank * layers_per_partition
+                    new_name = rename_layer_index(param_name, global_idx)
+                    unified[new_name] = param_tensor
+                else:
+                    # Embeddings, final layer norms, etc. do not need renaming
+                    unified[param_name] = param_tensor
+            return unified
+
+        def broadcast_parameter(param_name, local_params, src_rank, rank_in_group, pipeline_group):
+            """
+            Broadcast 'param_name' from 'src_rank' to all ranks in 'pipeline_group'.
+            If this rank is 'src_rank', use local_params[param_name].
+            Otherwise, create an empty tensor and receive it.
+            
+            We do not do shape mismatch checks. We assume only src_rank has this parameter.
+            """            
+            if rank_in_group == src_rank:
+                # This rank owns the parameter
+                source_tensor = local_params[param_name].to(device="cuda", dtype=storage_dtype)
+                # We'll broadcast its shape in an object_list to help others create a matching tensor
+                shape_list = [source_tensor.size()]
+            else:
+                source_tensor = None
+                shape_list = [None]
+
+            # Broadcast the shape to all ranks
+            torch.distributed.broadcast_object_list(shape_list, src=src_rank, group=pipeline_group)
+            shape_ = shape_list[0]
+
+            if rank_in_group != src_rank:
+                # Create an empty buffer of the right shape
+                source_tensor = torch.empty(shape_, dtype=storage_dtype, device="cuda")
+
+            # Broadcast the actual contents
+            torch.distributed.broadcast(source_tensor, src=src_rank, group=pipeline_group)
+            return source_tensor
+
+        num_layers = model_config["num_layers"]
+        local_params = unify_layer_indices(local_state_dict, pp_rank, num_layers // pp_size)
+
+        # 1) Gather the local rank's param keys
+        local_keys = list(local_params.keys())
+        key_lists = [None] * pp_size
+        torch.distributed.all_gather_object(key_lists, local_keys, group=pp_group)
+
+        # 2) Build a global set of parameter names
+        global_keys = set()
+        for key_list in key_lists:
+            global_keys.update(key_list)
+
+        # 3) For each parameter name, discover which rank has it, broadcast from that rank
+        final_dict = {}
+        for param_name in sorted(global_keys):
+            # Check which rank actually has this parameter
+            rank = torch.distributed.get_rank()
+            rank_that_has_it = rank if param_name in local_params else -1
+            has_param_list = [-1] * pp_size
+            torch.distributed.all_gather_object(has_param_list, rank_that_has_it, group=pp_group)
+
+            # Exactly one rank should have it
+            src_rank = max(has_param_list)
+
+            # Broadcast from src_rank -> all ranks
+            broadcasted_tensor = broadcast_parameter(param_name, local_params, src_rank, rank, pp_group)
+
+            final_dict[param_name] = broadcasted_tensor
+
+        return final_dict
+        
     def get_input_dtype(self, storage_dtype):
         """
         Return mcore export dtype given torch dtype
@@ -797,10 +931,13 @@ class TensorRTLLM(ITritonDeployable):
             from tensorrt_llm.layers import MoeConfig
 
             storage_dtype = torch_dtype_from_precision(model_config.precision)
-            model_state_dict = self.gather_and_reshard_model(model_config, model, storage_dtype)
+            input_model_type = getattr(ModelType, model_type)
+            if input_model_type == ModelType.nemotron_nas:
+                model_state_dict = self.gather_and_reshard_model_heterogenous(model_config, model, storage_dtype)
+            else:
+                model_state_dict = self.gather_and_reshard_model(model_config, model, storage_dtype)
             # We build the transformer config using the nemo model config.
             transformer_config = self.get_transformer_config(model_config)
-            input_model_type = getattr(ModelType, model_type)
 
             nemo_model_conversion_dict = self.get_nemo_to_trtllm_conversion_dict(model_state_dict, input_model_type)
             self.trtllm_helper = TRTLLMHelper(
@@ -849,6 +986,10 @@ class TensorRTLLM(ITritonDeployable):
                     tp_size=self.tp_size,
                     pp_size=self.pp_size,
                 )
+
+            del model_state_dict
+            gc.collect()
+            torch.cuda.empty_cache()
 
             engine = self.trtllm_helper.build_and_save_engine(
                 max_input_len=max_input_len,
@@ -903,9 +1044,12 @@ class TensorRTLLM(ITritonDeployable):
         weights_dict = None
         if use_mcore_path:
             storage_dtype = torch_dtype_from_precision(model_config.precision)
-
-            model_state_dict = self.gather_and_reshard_model(model_config, model, storage_dtype)
             input_model_type = getattr(ModelType, self.model_type)
+
+            if input_model_type == ModelType.nemotron_nas:
+                model_state_dict = self.gather_and_reshard_model_heterogenous(model_config, model, storage_dtype)
+            else:
+                model_state_dict = self.gather_and_reshard_model(model_config, model, storage_dtype)
             nemo_model_conversion_dict = self.get_nemo_to_trtllm_conversion_dict(model_state_dict, model_type=input_model_type)
             
             self.trtllm_helper.weights_converter.convert(
