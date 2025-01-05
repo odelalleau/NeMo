@@ -20,7 +20,7 @@ from typing import Dict, List, Optional, Union
 import torch
 from hydra.utils import instantiate
 from omegaconf import DictConfig
-from pytorch_lightning import Trainer
+from lightning.pytorch import Trainer
 from tqdm import tqdm
 
 from nemo.collections.asr.data.audio_to_diar_label import AudioToSpeechE2ESpkDiarDataset

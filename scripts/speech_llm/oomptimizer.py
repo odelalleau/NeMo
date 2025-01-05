@@ -20,7 +20,7 @@ import sys
 from numbers import Number
 
 import click
-import pytorch_lightning as pl
+import lightning.pytorch as pl
 import torch
 from lhotse import compute_num_samples
 from omegaconf import OmegaConf

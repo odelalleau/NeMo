@@ -16,9 +16,9 @@ import json
 from pathlib import Path
 from typing import Tuple, Union
 
-import pytorch_lightning as pl
+import lightning.pytorch as pl
 from megatron.core import dist_checkpointing
-from pytorch_lightning.trainer.states import TrainerFn
+from lightning.pytorch.trainer.states import TrainerFn
 
 from nemo.collections.common.tokenizers.huggingface.auto_tokenizer import AutoTokenizer
 from nemo.collections.llm.peft.lora import LoRA, LoRAMerge

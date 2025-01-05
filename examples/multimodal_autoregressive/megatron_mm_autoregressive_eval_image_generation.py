@@ -24,7 +24,7 @@ from examples.nlp.language_modeling.megatron_gpt_eval import (
     remove_padded_prompts,
     round_to_mult,
 )
-from pytorch_lightning.trainer.trainer import Trainer
+from lightning.pytorch.trainer.trainer import Trainer
 
 # pylint: disable=line-too-long
 from nemo.collections.common.video_tokenizers.cosmos_tokenizer import CausalVideoTokenizer

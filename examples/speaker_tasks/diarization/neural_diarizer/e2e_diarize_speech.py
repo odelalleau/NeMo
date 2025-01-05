@@ -47,7 +47,7 @@ import optuna
 import torch
 import yaml
 from omegaconf import OmegaConf
-from pytorch_lightning import seed_everything
+from lightning.pytorch import seed_everything
 from tqdm import tqdm
 
 from nemo.collections.asr.metrics.der import score_labels

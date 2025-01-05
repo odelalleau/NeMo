@@ -25,7 +25,7 @@ from examples.nlp.language_modeling.megatron_gpt_eval import (
 )
 from omegaconf import OmegaConf
 from PIL import Image
-from pytorch_lightning.trainer.trainer import Trainer
+from lightning.pytorch.trainer.trainer import Trainer
 from torch.utils.data import DataLoader
 from transformers import AutoModel, AutoTokenizer
 
