@@ -493,13 +493,17 @@ def load_distributed(engine_dir, model_parallel_rank, gpus_per_node):
     # https://github.com/terrykong/TensorRT-LLM/blob/05316d3313360012536ace46c781518f5afae75e/cpp/tensorrt_llm/runtime/gptJsonConfig.cpp#L478
     engine_filename = f"rank{engine_index}.engine"
     serialize_path = Path(engine_dir) / engine_filename
+    print("before engine read")
     with open(serialize_path, "rb") as f:
         engine_data = bytearray(f.read())
+    print("after engine read")
 
     with open(config_path) as f:
         json_config_str = f.read()
 
+    print("before engine from buffer")
     engine = Engine.from_buffer(engine_buffer=engine_data, json_config_str=json_config_str, rank=model_parallel_rank)
+    print("after engine from buffer")
 
     if not TRTLLM_SUPPORTS_DEVICE_DISABLE:
         raise RuntimeError(
@@ -509,12 +513,14 @@ def load_distributed(engine_dir, model_parallel_rank, gpus_per_node):
         raise RuntimeError(
             f"To use TensorRT-LLM's python ModelRunner API in load_distributed(...) you must set the env var DISABLE_TORCH_DEVICE_SET=1"
         )
+    print("before runner from engine")
     decoder = ModelRunner.from_engine(
         engine=engine,
         # We want the engine to have the mp_rank, but the python runtime to not resassign the device of the current process
         # So we will set it to the current device
         rank=torch.cuda.current_device(),
     )
+    print("before runner from engine")
 
     tensorrt_llm_worker_context.decoder = decoder
     tensorrt_llm_worker_context.max_batch_size = max_batch_size

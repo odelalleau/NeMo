@@ -88,6 +88,23 @@ try:
 except Exception:
     use_pytriton = False
 
+def print_machine_memory_usage(header: str = ""):
+    import socket
+
+    print(f"[{socket.gethostname()}] {header}")
+    with open('/proc/meminfo', 'r') as meminfo:
+        lines = meminfo.readlines()
+    
+    meminfo_dict = {}
+    for line in lines:
+        key, value = line.split(':')
+        meminfo_dict[key.strip()] = int(value.split()[0])
+    
+    total_mem = meminfo_dict['MemTotal'] / 1024  # Convert to MB
+    available_mem = meminfo_dict['MemAvailable'] / 1024  # Convert to MB
+    used_mem = total_mem - available_mem  # In MB
+
+    print(f"Total RAM: {total_mem:.2f} MB, Available RAM: {available_mem:.2f} MB, Used RAM: {used_mem:.2f} MB")
 
 # pylint: disable=line-too-long
 class TensorRTLLM(ITritonDeployable):
@@ -915,6 +932,8 @@ class TensorRTLLM(ITritonDeployable):
         """
         Convert a model parallel nemo model to TensorRT-LLM.
         """
+        print_machine_memory_usage("build start")
+
         assert tensorrt_llm.mpi_rank() == torch.distributed.get_rank()
         self.use_refit, self.model_type, self.gpus_per_node = use_refit, model_type, gpus_per_node
         self.mp_rank, self.dp_rank, self.tp_size, self.pp_size, self.dp_size = init_model_parallel_from_nemo(
@@ -932,10 +951,13 @@ class TensorRTLLM(ITritonDeployable):
 
             storage_dtype = torch_dtype_from_precision(model_config.precision)
             input_model_type = getattr(ModelType, model_type)
+            print_machine_memory_usage("before gather_and_reshard_model")
             if input_model_type == ModelType.nemotron_nas:
                 model_state_dict = self.gather_and_reshard_model_heterogenous(model_config, model, storage_dtype)
             else:
                 model_state_dict = self.gather_and_reshard_model(model_config, model, storage_dtype)
+            print_machine_memory_usage("after gather_and_reshard_model")
+
             # We build the transformer config using the nemo model config.
             transformer_config = self.get_transformer_config(model_config)
 
@@ -960,6 +982,7 @@ class TensorRTLLM(ITritonDeployable):
 
             input_dtype = self.get_input_dtype(storage_dtype)
 
+            print_machine_memory_usage("before get_trtllm_pretrained_config_and_model_weights")
             trtllm_model_weights_list, trtllm_model_config_list = (
                 self.trtllm_helper.get_trtllm_pretrained_config_and_model_weights(
                     model_state_dict=model_state_dict,
@@ -972,6 +995,8 @@ class TensorRTLLM(ITritonDeployable):
             )
             trtllm_model_config = trtllm_model_config_list[0]
             trtllm_model_weights = trtllm_model_weights_list[0]
+
+            print_machine_memory_usage("after get_trtllm_pretrained_config_and_model_weights")
 
             if reshard_model:
                 assert self.pp_size == 1, 'Reshard is true, but pp size is not one'
@@ -991,6 +1016,7 @@ class TensorRTLLM(ITritonDeployable):
             gc.collect()
             torch.cuda.empty_cache()
 
+            print_machine_memory_usage("before build_and_save_engine")
             engine = self.trtllm_helper.build_and_save_engine(
                 max_input_len=max_input_len,
                 max_output_len=max_output_len,
@@ -1001,6 +1027,7 @@ class TensorRTLLM(ITritonDeployable):
                 engine_dir=self.model_dir,
                 use_refit=use_refit,
             )
+            print_machine_memory_usage("after build_and_save_engine")
         else:
             weights, model_config = model_to_trtllm_ckpt(
                 model=model,
@@ -1034,7 +1061,16 @@ class TensorRTLLM(ITritonDeployable):
         with open(cfg_path, "w", encoding="utf-8") as f:
             json.dump(engine.config.to_dict(), f, indent=4)
 
+        del trtllm_model_weights
+        self.trtllm_helper.weights_converter.trtllm_model_weights.clear()
+        gc.collect()
+        torch.cuda.empty_cache()
+
+        print_machine_memory_usage("before load_distributed")
+
+        # Convert to MB
         load_distributed(self.model_dir, self.mp_rank, gpus_per_node)
+        print_machine_memory_usage("after load_distributed")
 
     def refit(self, model, model_config, use_mcore_path=True):
         """
