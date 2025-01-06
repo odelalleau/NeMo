@@ -1058,17 +1058,21 @@ class TensorRTLLM(ITritonDeployable):
         torch.distributed.barrier()
 
         cfg_path = Path(os.path.join(self.model_dir, f'config_{torch.distributed.get_rank()}.json'))
+        print(f"Engine config: {json.dumps(engine.config.to_dict(), indent=4)}")
         with open(cfg_path, "w", encoding="utf-8") as f:
             json.dump(engine.config.to_dict(), f, indent=4)
 
+        # if self.dp_rank == 0:
+        #     self.model_dir
+
         del trtllm_model_weights
+        del engine
         self.trtllm_helper.weights_converter.trtllm_model_weights.clear()
         gc.collect()
         torch.cuda.empty_cache()
 
         print_machine_memory_usage("before load_distributed")
 
-        # Convert to MB
         load_distributed(self.model_dir, self.mp_rank, gpus_per_node)
         print_machine_memory_usage("after load_distributed")
 
