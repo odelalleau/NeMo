@@ -500,11 +500,24 @@ def load_distributed(engine_dir, model_parallel_rank, gpus_per_node):
 
     with open(config_path) as f:
         json_config_str = f.read()
-
     print("before engine from buffer")
     engine = Engine.from_buffer(engine_buffer=engine_data, json_config_str=json_config_str, rank=model_parallel_rank)
     print("after engine from buffer")
 
+    print("modifying num_kv_heads_per_layer engine.config")
+    print("pp size:", pp_size)
+    from megatron.core import parallel_state
+    pp_rank = parallel_state.get_pipeline_model_parallel_rank()
+    print("pp rank", pp_rank)
+    num_layers = engine.config.pretrained_config.num_hidden_layers // pp_size
+    first_layer = num_layers * pp_rank
+    last_layer = first_layer + num_layers
+    print("first and last layers: ", first_layer, last_layer)
+    sliced_layer_types = engine.config.pretrained_config.layer_types[first_layer:last_layer]
+    num_attentions = sliced_layer_types.count("attention")
+    print("sliced layer types", sliced_layer_types, "number of attention layers", num_attentions)
+    engine.config.pretrained_config.num_kv_heads_per_layer = [8] * num_attentions
+    print("new kv_heads_per_layer list:", engine.config.pretrained_config.num_kv_heads_per_layer)
     if not TRTLLM_SUPPORTS_DEVICE_DISABLE:
         raise RuntimeError(
             f"TensorRT-LLM does not support torch device disabling. Please upgrade TensorRT-LLM to make use of this feature."
@@ -520,7 +533,14 @@ def load_distributed(engine_dir, model_parallel_rank, gpus_per_node):
         # So we will set it to the current device
         rank=torch.cuda.current_device(),
     )
-    print("before runner from engine")
+
+    # print("session num_attention_layers:", decoder.session.num_attn_layers, "session vars", vars(decoder.session))
+    # # print("session num_attention_layers:", decoder.session.num_attn_layers, "session pool mapping", decoder.session._memory_pool_allocator._pool_mapping)
+    # print("Trying to override the engine now")
+    # decoder.session._memory_pool_allocator._pool_mapping = torch.tensor(decoder.session.num_attn_layers, dtype=torch.int32)
+    # print("After override")
+    # print("session num_attention_layers:", decoder.session.num_attn_layers, "session pool mapping", decoder.session._memory_pool_allocator._pool_mapping)
+    # print("before runner from engine")
 
     tensorrt_llm_worker_context.decoder = decoder
     tensorrt_llm_worker_context.max_batch_size = max_batch_size
