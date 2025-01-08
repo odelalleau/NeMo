@@ -106,6 +106,86 @@ def print_machine_memory_usage(header: str = ""):
 
     print(f"Total RAM: {total_mem:.2f} MB, Available RAM: {available_mem:.2f} MB, Used RAM: {used_mem:.2f} MB")
 
+from tensorrt_llm.bindings import KVCacheType
+from tensorrt_llm.mapping import Mapping
+from tensorrt_llm.models.nemotron_nas.model import DeciLMForCausalLM
+
+_original_prepare_attention_inputs = DeciLMForCausalLM.prepare_attention_inputs
+def patched_nemotron_nas_prepare_attention_inputs(
+        self,
+        *,
+        max_batch_size: int,
+        max_beam_width: int,
+        max_input_len: int,
+        max_seq_len: int,
+        num_kv_heads: int,
+        head_size: int,
+        num_layers: int,
+        kv_dtype: str,
+        kv_cache_type: KVCacheType,
+        num_profiles: int = 1,
+        enable_ctx_gen_opt_profiles: bool = False,
+        remove_input_padding: bool = False,
+        use_gpt_attention_plugin: bool = False,
+        paged_kv_cache: bool = False,
+        tokens_per_block: int = 64,
+        mapping: Mapping = Mapping(),
+        use_cache: bool = True,
+        streamingllm: bool = False,
+        attn_layer_idx: Optional[List[int]] = None,
+        opt_batch_size: Optional[int] = None,
+        num_kv_heads_per_layer: Optional[List[int]] = None):
+
+    try:
+        attention_inputs = _original_prepare_attention_inputs(
+            self,
+            max_batch_size=max_batch_size,
+            max_beam_width=max_beam_width,
+            max_input_len=max_input_len,
+            max_seq_len=max_seq_len,
+            num_kv_heads=num_kv_heads,
+            head_size=head_size,
+            num_layers=num_layers,
+            kv_dtype=kv_dtype,
+            kv_cache_type=kv_cache_type,
+            num_profiles=num_profiles,
+            enable_ctx_gen_opt_profiles=enable_ctx_gen_opt_profiles,
+            remove_input_padding=remove_input_padding,
+            use_gpt_attention_plugin=use_gpt_attention_plugin,
+            paged_kv_cache=paged_kv_cache,
+            tokens_per_block=tokens_per_block,
+            mapping=mapping,
+            use_cache=use_cache,
+            streamingllm=streamingllm,
+            attn_layer_idx=attn_layer_idx,
+            opt_batch_size=opt_batch_size,
+            num_kv_heads_per_layer=num_kv_heads_per_layer,
+        )
+    except Exception as e:
+        LOGGER.warning(f"Failed to prepare attention inputs: {e}")
+        attention_inputs = {
+            'attention_mask': None,
+            'sequence_length': None,
+            'host_past_key_value_lengths': None,
+            'host_max_attention_window_sizes': None,
+            'host_sink_token_length': None,
+            'past_key_value': None,
+            'cache_indirection': None,
+            'kv_cache_block_offsets': None,
+            'host_kv_cache_block_offsets': None,
+            'host_kv_cache_pool_pointers': None,
+            'host_kv_cache_pool_mapping': None,
+            'context_lengths': None,
+            'host_context_lengths': None,
+            'host_request_types': None,
+            'host_runtime_perf_knobs': None,
+            'host_context_progress': None,
+        }
+
+    return attention_inputs
+
+DeciLMForCausalLM.prepare_attention_inputs = patched_nemotron_nas_prepare_attention_inputs
+
 # pylint: disable=line-too-long
 class TensorRTLLM(ITritonDeployable):
     """
