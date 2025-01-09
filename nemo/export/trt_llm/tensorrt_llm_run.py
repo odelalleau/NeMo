@@ -507,7 +507,7 @@ def load_distributed(engine_dir, model_parallel_rank, gpus_per_node):
     print("modifying num_kv_heads_per_layer engine.config")
     print("pp size:", pp_size)
     from megatron.core import parallel_state
-    pp_rank = parallel_state.get_pipeline_model_parallel_rank()
+    pp_rank = 0 if pp_size == 1 else parallel_state.get_pipeline_model_parallel_rank()
     print("pp rank", pp_rank)
     num_layers = engine.config.pretrained_config.num_hidden_layers // pp_size
     first_layer = num_layers * pp_rank
