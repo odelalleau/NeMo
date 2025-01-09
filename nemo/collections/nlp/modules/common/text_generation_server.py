@@ -71,7 +71,7 @@ class MegatronGenerate(Resource):
         output_dict = {
             'system': '',
             'conversations': [],
-            'mask': 'User',
+            'mask': 'user',
             'type': 'VALUE_TO_TEXT',
         }
 
@@ -85,7 +85,7 @@ class MegatronGenerate(Resource):
         for msg in input_list:
             if msg['role'] != 'system':
                 conversation_entry = {
-                    'from': msg['role'].capitalize(),  # Capitalize 'user' and 'assistant'
+                    'from': msg['role'],  #.capitalize(),  # Capitalize 'user' and 'assistant'
                     'value': msg['content'],
                     'label': None,
                 }
@@ -173,7 +173,9 @@ class MegatronGenerate(Resource):
             nemo_source, special_tokens
         )
         len_strip = len(special_tokens['end_of_turn'] + special_tokens['turn_start'])
+        #print(f"BEFORE:\n```{conversation}```")
         conversation = conversation[:-len_strip]
+        #print(f"AFTER:\n```{conversation}```")
         # Return a response mimicking the OpenAI ChatCompletion API format
         with lock:  # Need to get lock to keep multiple threads from hitting code
             MegatronGenerate.send_do_generate()  # Tell other ranks we're doing generate
@@ -186,7 +188,17 @@ class MegatronGenerate(Resource):
             top_k = 0
             greedy = data['temperature'] == 0.0
             logprobs = data.get("logprobs", False)
-            end_strings = ['<|endoftext|>', special_tokens['turn_start'], special_tokens['label_start']]
+            end_strings = ['<|endoftext|>']
+            for special_key in [
+                    # Currently this is hardcoded for the Llama3 template, where only 'end_of_turn' matters.
+                    # Ideally `end_strings` should be in the model config, because we can't know for sure
+                    # what to use otherwise.
+                    'end_of_turn',
+                    #'turn_start',
+                    #'label_start',
+            ]:
+                if (tok := special_tokens[special_key]):
+                    end_strings.append(tok)
             random_seed = None
 
             output = generate(
@@ -210,7 +222,22 @@ class MegatronGenerate(Resource):
                 if isinstance(output[k], torch.Tensor):
                     output[k] = output[k].tolist()
 
-        output_sentence = output['sentences'][0][len(conversation) :]
+        # The "<|begin_of_text|>" token gets removed in the output -- this is probably a tokenizer issue,
+        # but we hack it here until this is fixed.
+        if conversation.startswith("<|begin_of_text|>"):
+            for i, sentence in enumerate(output['sentences']):
+                if not sentence.startswith("<|begin_of_text|>"):
+                    output['sentences'][i] = "<|begin_of_text|>" + sentence
+
+        #print(f"FULL OUTPUT:\n```{output['sentences'][0]}```")
+        # Remove prefix.
+        output_sentence = output['sentences'][0]
+        assert output_sentence.startswith(conversation)
+        output_sentence = output_sentence.removeprefix(conversation)
+        # Remove suffix.
+        if (suffix := special_tokens['end_of_turn']):
+            output_sentence = output_sentence.removesuffix(suffix)
+        #print(f"TRIMMED OUTPUT:\n```{output_sentence}```")
         tokens = output['tokens'][0]
         logprobs = output['logprob'][0] if output['logprob'] is not None else None
         num_prompt_tokens = len(conversation.split())  # @adithyare only produces an approx. number of tokens
