@@ -28,7 +28,7 @@ PREFIX_STR = (
 )
 
 IGNORE_INDEX = -100
-SYSTEM_TOKEN = "System"
+SYSTEM_TOKEN = "system"
 
 TYPE_INSTRUCTION = {
     'TEXT_TO_VALUE': "",
