@@ -230,10 +230,6 @@ class AutoTokenizer(TokenizerSpec):
             tokens_clean = [t for t in tokens if t not in self.tokenizer.all_special_tokens]
         else:
             tokens_clean = tokens
-            # We still remove the EOS token because a lot of code relies on the assumption
-            # that the EOS token ending the sequence should not appear in the output.
-            #print(f"{self.eos_token=}")
-            #tokens_clean = [t for t in tokens if t != "<|end_of_text|>"]  # should be self.eos_token
         text = self.tokens_to_text(tokens_clean)
         return text
 
