@@ -20,7 +20,7 @@ import tarfile
 from dataclasses import dataclass
 from typing import Any, Dict, List, Sequence, Tuple, Union
 
-import decord
+# import decord
 import numpy as np
 import torch
 import torch.nn.functional as F

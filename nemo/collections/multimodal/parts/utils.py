@@ -15,7 +15,7 @@ import os
 import tempfile
 from typing import Any, Callable, Tuple
 
-import decord
+# import decord
 import numpy as np
 import torch
 from omegaconf import DictConfig, OmegaConf, open_dict

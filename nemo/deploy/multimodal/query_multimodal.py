@@ -13,7 +13,7 @@
 # limitations under the License.
 
 import numpy as np
-from decord import VideoReader
+# from decord import VideoReader
 from PIL import Image
 
 from nemo.deploy.utils import str_list2numpy
