@@ -211,6 +211,9 @@ class MegatronGenerate(Resource):
             nemo_source, special_tokens
         )
         len_strip = len(special_tokens['end_of_turn'] + special_tokens['turn_start'])
+
+        print(f"BEFORE:\n```{conversation}```")
+
         conversation = conversation[:-len_strip]
         if OmegaConf.select(self.model.cfg, "data.train_ds.meta_tokens") is not None:
             num_meta_tokens = self.model.cfg.data.train_ds.meta_tokens
@@ -282,11 +285,22 @@ class MegatronGenerate(Resource):
             MegatronGenerate.tasks.get()
             MegatronGenerate.tasks.task_done()
 
-        output_sentence = output['sentences'][queryid][len(conversation) :]
+        output_sentence = output['sentences'][queryid]
+        print(f"FULL OUTPUT:\n```{output_sentence}```")
+
+        # Remove prefix.
+        if not output_sentence.startswith(conversation):
+            msg = f"*** MISMATCH DETECTED ***\n\nINPUT:\n{conversation}\n\nOUTPUT:\n{output_sentence}\n"
+            print(msg)
+            raise RuntimeError(msg)
+        output_sentence = output_sentence.removeprefix(conversation)
+
         # remove end_strings
         for e in end_strings:
             if output_sentence.endswith(special_tokens['end_of_turn'] + e):
                 output_sentence = output_sentence[: -len(special_tokens['end_of_turn'] + e)]
+
+        print(f"TRIMMED OUTPUT:\n```{output_sentence}```")
 
         tokens = output['tokens'][queryid]
         tokens = [t.decode('utf-8', errors='replace') if isinstance(t, bytes) else t for t in tokens]
