@@ -14,12 +14,23 @@
 """Utilities for generating text."""
 
 import json
+import os
+import queue
 import threading
+import time
+import uuid
+from functools import lru_cache
+from pathlib import Path
 
 import torch
 from flask import Flask, jsonify, request
 from flask_restful import Api, Resource
+from omegaconf import OmegaConf
 
+from nemo.collections.nlp.data.language_modeling.megatron.gpt_sft_chat_dataset import (
+    _get_header_conversation_type_mask_role,
+    get_prompt_template_example,
+)
 from nemo.collections.nlp.modules.common.retro_inference_strategies import (
     RetroModelTextGenerationStrategy,
     RetroQAModelTextGenerationStrategy,
@@ -52,6 +63,11 @@ API_ALLOWED_KEYS = set(
 
 
 class MegatronGenerate(Resource):
+    tasks = queue.Queue()
+    inputs = []
+    outputs = []
+    batch_done = threading.Event()
+
     def __init__(self, model, inference_strategy=None):
         self.model = model
         self.inference_strategy = inference_strategy
@@ -60,6 +76,265 @@ class MegatronGenerate(Resource):
     def send_do_generate():
         choice = torch.cuda.LongTensor([GENERATE_NUM])
         torch.distributed.broadcast(choice, 0)
+
+    @lru_cache
+    def get_system_prompt(self, system_path):
+        if system_path is None:
+            return ""
+        with Path(system_path).open() as reader:
+            return reader.read().strip()
+
+    def convert_messages(self, input_list):
+        output_dict = {
+            'system': self.get_system_prompt(os.getenv("NEMO_SYSTEM_PROMPT_PATH")),
+            'conversations': [],
+            'mask': 'user',
+            'type': 'VALUE_TO_TEXT',
+        }
+
+        # Extract the system message
+        for msg in input_list:
+            if msg['role'] == 'system':
+                output_dict['system'] = msg['content']
+                break  # Assuming only one system message
+
+        # Build the conversations list
+        for msg in input_list:
+            if msg['role'] != 'system':
+                conversation_entry = {
+                    'from': msg['role'],  #.capitalize(),  # Capitalize 'user' and 'assistant'
+                    'value': msg['content'],
+                    'label': None,
+                }
+                output_dict['conversations'].append(conversation_entry)
+
+        return output_dict
+
+    def completion(self, data):
+        output_sentence = ""
+        with lock:  # Need to get lock to keep multiple threads from hitting code
+            MegatronGenerate.send_do_generate()  # Tell other ranks we're doing generate
+            extra = {}
+            if self.inference_strategy is not None:
+                extra['strategy'] = self.inference_strategy
+
+            all_probs = False
+            add_BOS = False
+            top_p = data.get("top_p", 1.0)
+            top_k = data.get("top_k", 0)
+            max_tokens = data.get("max_tokens", 32)
+            temperature = data.get("temperature", 0.0)
+            logprobs = data.get("logprobs", False)
+            greedy = temperature == 0.0
+            end_strings = ['<|endoftext|>'] + data.get("end_strings", [])
+            prompt = data["prompt"]
+            random_seed = data.get("seed", 1234)
+
+            output = generate(
+                self.model,
+                [prompt],
+                tokens_to_generate=max_tokens,
+                all_probs=all_probs,
+                temperature=temperature,
+                add_BOS=add_BOS,
+                top_k=top_k,
+                top_p=top_p,
+                greedy=greedy,
+                repetition_penalty=1.0,
+                end_strings=end_strings,
+                min_tokens_to_generate=0,
+                compute_logprob=logprobs,
+                random_seed=random_seed,
+                **extra,
+            )
+            for k in output:
+                if isinstance(output[k], torch.Tensor):
+                    output[k] = output[k].tolist()
+
+            output_sentence = output['sentences'][0][len(prompt) :]
+            tokens = output['tokens'][0]
+            logprobs = output['logprob'][0] if output['logprob'] is not None else None
+            num_prompt_tokens = len(prompt.split())
+            num_output_sentence = len(output_sentence.split())
+
+        return jsonify(
+            {
+                "choices": [
+                    {
+                        "finish_reason": "",
+                        "index": 0,
+                        "logprobs": logprobs,
+                        "text": output_sentence,
+                        "tokens": tokens,
+                    }
+                ],
+                "created": int(time.time()),
+                "id": f"cmpl-{uuid.uuid4()}",
+                "model": "nemo model",
+                "object": "text_completion",
+                "usage": {
+                    "completion_tokens": num_output_sentence,
+                    "prompt_tokens": num_prompt_tokens,
+                    "total_tokens": num_output_sentence + num_prompt_tokens,
+                },
+            }
+        )
+
+    def chat_completion(self, data):
+        data['messages'] = data['messages'] + [
+            {'role': 'assistant', 'content': ''}
+        ]  # adding trailing assistant message so that prompt ends with Assistant tag.
+        if OmegaConf.select(self.model.cfg, "data.chat_prompt_tokens") is not None:
+            special_tokens = self.model.cfg.data.chat_prompt_tokens
+        else:
+            raise RuntimeError(
+                "You don't have a model (model_config.yaml) which has chat_prompt_tokens, are you sure this is a Chat/Instruction model?"
+            )
+        nemo_source = self.convert_messages(data['messages'])
+        header, conversation, data_type, mask_role = _get_header_conversation_type_mask_role(
+            nemo_source, special_tokens
+        )
+        len_strip = len(special_tokens['end_of_turn'] + special_tokens['turn_start'])
+        #print(f"BEFORE:\n```{conversation}```")
+        conversation = conversation[:-len_strip]
+
+        batching = data.get('max_tokens', 32) > 64
+        if batching:
+            with lock:
+                queryid = len(MegatronGenerate.inputs)
+
+                if queryid == 0:
+                    # Wait for the previous batch to be fully processed.
+                    MegatronGenerate.tasks.join()
+                    MegatronGenerate.batch_done.clear()
+
+                MegatronGenerate.inputs.append(conversation)
+                MegatronGenerate.tasks.put(None)  # The tasks queue is only used as a "counter"
+            time.sleep(0.5)  # process one batch every 0.5s
+        else:
+            queryid = 0
+        end_strings = ['<|endoftext|>']
+        for special_key in [
+                # Currently this is hardcoded for the Llama3 template, where only 'end_of_turn' matters.
+                # Ideally `end_strings` should be in the model config, because we can't know for sure
+                # what to use otherwise.
+                'end_of_turn',
+                #'turn_start',
+                #'label_start',
+        ]:
+            if (tok := special_tokens[special_key]):
+                end_strings.append(tok)
+
+        # Return a response mimicking the OpenAI ChatCompletion API format
+        if queryid == 0:
+            with lock:  # Ensure a single batch is processed at a time
+                MegatronGenerate.send_do_generate()  # Tell other ranks we're doing generate
+                extra = {}
+                if self.inference_strategy is not None:
+                    extra['strategy'] = self.inference_strategy
+
+                all_probs = False
+                add_BOS = False
+                top_k = 0
+                greedy = data['temperature'] == 0.0
+                logprobs = data.get("logprobs", False)
+                random_seed = None
+
+                output = generate(
+                    self.model,
+                    MegatronGenerate.inputs if batching else [conversation],
+                    data.get('max_tokens', 32),
+                    all_probs=all_probs,
+                    temperature=data.get('temperature', 1.0),
+                    add_BOS=add_BOS,
+                    top_k=top_k,
+                    top_p=data.get("top_p", 0.95),
+                    greedy=greedy,
+                    repetition_penalty=1.0,
+                    end_strings=end_strings,
+                    min_tokens_to_generate=0,
+                    compute_logprob=logprobs,
+                    random_seed=random_seed,
+                    **extra,
+                )
+                for k in output:
+                    if isinstance(output[k], torch.Tensor):
+                        output[k] = output[k].tolist()
+                if batching:
+                    MegatronGenerate.inputs = []
+                    MegatronGenerate.outputs = output
+                    MegatronGenerate.batch_done.set()
+
+        if batching:
+            MegatronGenerate.batch_done.wait()
+            output = MegatronGenerate.outputs
+            # Indicate that we are done processing the current query.
+            MegatronGenerate.tasks.get()
+            MegatronGenerate.tasks.task_done()
+
+        output_sentence = output['sentences'][queryid]
+        #print(f"FULL OUTPUT:\n```{output_sentence}```")
+
+        # The "<|begin_of_text|>" token gets removed in the output -- this is probably a tokenizer issue,
+        # but we hack it here until this is fixed.
+        if conversation.startswith("<|begin_of_text|>") and not output_sentence.startswith("<|begin_of_text|>"):
+            output_sentence = "<|begin_of_text|>" + output_sentence
+
+        # Remove prefix.
+        assert output_sentence.startswith(conversation)
+        output_sentence = output_sentence.removeprefix(conversation)
+
+        # Remove suffix.
+        eot = special_tokens['end_of_turn']
+        for e in end_strings:
+            # This code is meant to be somewhat generic (even if the above code is not):
+            #   - If we stop on "end_of_turn", then we strip "end_of_turn" (ex: "<|eot_id|>")
+            #   - If we stop on an end string that follows "end_of_turn", then we strip both "end_of_turn"
+            #     and that end string (ex: "\n<extra_id_1>")
+            suffix = e if e == eot else (eot + e)
+            output_sentence = output_sentence.removesuffix(suffix)
+
+        #print(f"TRIMMED OUTPUT:\n```{output_sentence}```")
+
+        tokens = output['tokens'][queryid]
+        tokens = [t.decode('utf-8', errors='replace') if isinstance(t, bytes) else t for t in tokens]
+        logprobs = output['logprob'][queryid] if output['logprob'] is not None else None
+        num_prompt_tokens = len(conversation.split())  # @adithyare only produces an approx. number of tokens
+        num_output_sentence = len(output_sentence.split())
+
+        return jsonify(
+            {
+                "id": f"chatcmpl-{uuid.uuid4()}",
+                "object": "chat.completion",
+                "created": str(int(time.time())),
+                "model": data.get("model", "nemo model"),
+                "choices": [
+                    {
+                        "index": 0,
+                        "message": {"role": "assistant", "content": output_sentence},
+                        "logprobs": logprobs,
+                        "tokens": tokens,
+                        "finish_reason": "",
+                    }
+                ],
+                "usage": {
+                    "prompt_tokens": num_prompt_tokens,
+                    "completion_tokens": num_output_sentence,
+                    "total_tokens": num_output_sentence + num_prompt_tokens,
+                },
+            }
+        )
+
+    def post(self):
+        # Access the request data if needed
+        if request.endpoint == "oai_completions":
+            data = request.get_json()
+            return self.completion(data)
+        elif request.endpoint == "oai_chat_completions":
+            data = request.get_json()
+            return self.chat_completion(data)
+        else:
+            raise RuntimeError("Unknown enpoint requested.")
 
     def put(self):
         logging.info("request IP: " + str(request.remote_addr))
@@ -135,7 +410,7 @@ class MegatronGenerate(Resource):
             if not (0.0 <= top_p <= 1.0):
                 return "top_p must be a positive number less than or equal to 1.0"
 
-        repetition_penalty = 1.2
+        repetition_penalty = 1.0
         if "repetition_penalty" in request.get_json():
             repetition_penalty = request.get_json()["repetition_penalty"]
             if not (type(repetition_penalty) == int or type(repetition_penalty) == float):
@@ -215,6 +490,12 @@ class MegatronGenerate(Resource):
             for k in output:
                 if isinstance(output[k], torch.Tensor):
                     output[k] = output[k].tolist()
+
+        # (@adithyare) resolves a json byte conversion issue (taken from chat_completeion)
+        for i in range(len(output['tokens'])):
+            tokens = output['tokens'][i]
+            output['tokens'][i] = [t.decode('utf-8', errors='replace') if isinstance(t, bytes) else t for t in tokens]
+
         if not all_probs:
             del output['full_logprob']
 
@@ -231,7 +512,24 @@ class MegatronServer(object):
     def __init__(self, model, inference_strategy=None):
         self.app = Flask(__name__, static_url_path='')
         api = Api(self.app)
-        api.add_resource(MegatronGenerate, '/generate', resource_class_args=[model, inference_strategy])
+        api.add_resource(
+            MegatronGenerate,
+            '/generate',
+            endpoint="generate",
+            resource_class_kwargs={"model": model, "inference_strategy": inference_strategy},
+        )
+        api.add_resource(
+            MegatronGenerate,
+            '/v1/completions',
+            endpoint="oai_completions",
+            resource_class_kwargs={"model": model, "inference_strategy": inference_strategy},
+        )
+        api.add_resource(
+            MegatronGenerate,
+            '/v1/chat/completions',
+            endpoint="oai_chat_completions",
+            resource_class_kwargs={"model": model, "inference_strategy": inference_strategy},
+        )
 
     def run(self, url, port=5000):
         self.app.run(url, threaded=True, port=port, debug=False)
