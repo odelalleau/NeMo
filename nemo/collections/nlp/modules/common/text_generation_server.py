@@ -213,7 +213,7 @@ class MegatronGenerate(Resource):
             time.sleep(0.5)  # process one batch every 0.5s
         else:
             queryid = 0
-        end_strings = ['<|endoftext|>']
+        end_strings = ['<|endoftext|>', "<|eom_id|>"]
         for special_key in [
                 # Currently this is hardcoded for the Llama3 template, where only 'end_of_turn' matters.
                 # Ideally `end_strings` should be in the model config, because we can't know for sure
