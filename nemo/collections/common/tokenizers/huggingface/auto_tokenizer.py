@@ -217,7 +217,7 @@ class AutoTokenizer(TokenizerSpec):
 
     def ids_to_text(self, ids):
         tokens = self.ids_to_tokens(ids)
-        tokens_clean = [t for t in tokens if t not in self.tokenizer.all_special_tokens]
+        tokens_clean = [t for t in tokens]
         text = self.tokens_to_text(tokens_clean)
         return text
 
