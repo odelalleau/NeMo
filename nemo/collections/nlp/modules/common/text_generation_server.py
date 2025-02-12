@@ -292,7 +292,10 @@ class MegatronGenerate(Resource):
             #   - If we stop on an end string that follows "end_of_turn", then we strip both "end_of_turn"
             #     and that end string (ex: "\n<extra_id_1>")
             suffix = e if e == eot else (eot + e)
-            output_sentence = output_sentence.removesuffix(suffix)
+            # The loop is very Llama-Instruct-specific, due to how "<|eot_id|>" is also the padding
+            # EOS token => it may be present multiple times.
+            while output_sentence.endswith(suffix):
+                output_sentence = output_sentence.removesuffix(suffix)
 
         print(f"TRIMMED OUTPUT:\n```{output_sentence}```")
 
