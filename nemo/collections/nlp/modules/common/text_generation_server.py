@@ -290,11 +290,7 @@ class MegatronGenerate(Resource):
         while not done:
             done = True
             for e in end_strings:
-                # This code is meant to be somewhat generic (even if the above code is not):
-                #   - If we stop on "end_of_turn", then we strip "end_of_turn" (ex: "<|eot_id|>")
-                #   - If we stop on an end string that follows "end_of_turn", then we strip both "end_of_turn"
-                #     and that end string (ex: "\n<extra_id_1>")
-                suffix = e if e == eot else (eot + e)
+                suffix = e
                 # The loop is very Llama-Instruct-specific, due to how "<|eot_id|>" is also the padding
                 # EOS token => it may be present multiple times.
                 while output_sentence.endswith(suffix):
