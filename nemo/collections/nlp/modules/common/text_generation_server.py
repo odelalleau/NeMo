@@ -195,7 +195,7 @@ class MegatronGenerate(Resource):
             nemo_source, special_tokens
         )
         len_strip = len(special_tokens['end_of_turn'] + special_tokens['turn_start'])
-        print(f"BEFORE:\n```{conversation}```")
+        #print(f"BEFORE:\n```{conversation}```")
         conversation = conversation[:-len_strip]
 
         batching = data.get('max_tokens', 32) > 64
@@ -273,7 +273,7 @@ class MegatronGenerate(Resource):
             MegatronGenerate.tasks.task_done()
 
         output_sentence = output['sentences'][queryid]
-        print(f"FULL OUTPUT:\n```{output_sentence}```")
+        #print(f"FULL OUTPUT:\n```{output_sentence}```")
 
         # The "<|begin_of_text|>" token gets removed in the output -- this is probably a tokenizer issue,
         # but we hack it here until this is fixed.
@@ -297,7 +297,7 @@ class MegatronGenerate(Resource):
                     output_sentence = output_sentence.removesuffix(suffix)
                     done = False
 
-        print(f"TRIMMED OUTPUT:\n```{output_sentence}```")
+        #print(f"TRIMMED OUTPUT:\n```{output_sentence}```")
 
         tokens = output['tokens'][queryid]
         tokens = [t.decode('utf-8', errors='replace') if isinstance(t, bytes) else t for t in tokens]
