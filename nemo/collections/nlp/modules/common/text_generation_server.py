@@ -213,17 +213,8 @@ class MegatronGenerate(Resource):
             time.sleep(0.5)  # process one batch every 0.5s
         else:
             queryid = 0
-        end_strings = ['<|endoftext|>', "<|eom_id|>"]
-        for special_key in [
-                # Currently this is hardcoded for the Llama3 template, where only 'end_of_turn' matters.
-                # Ideally `end_strings` should be in the model config, because we can't know for sure
-                # what to use otherwise.
-                'end_of_turn',
-                #'turn_start',
-                #'label_start',
-        ]:
-            if (tok := special_tokens[special_key]):
-                end_strings.append(tok)
+        # Hard-coded for Nemotron-4.
+        end_strings = ['<|endoftext|>', '<extra_id_1>']
 
         # Return a response mimicking the OpenAI ChatCompletion API format
         if queryid == 0:
@@ -275,27 +266,20 @@ class MegatronGenerate(Resource):
         output_sentence = output['sentences'][queryid]
         print(f"FULL OUTPUT:\n```{output_sentence}```")
 
-        # The "<|begin_of_text|>" token gets removed in the output -- this is probably a tokenizer issue,
-        # but we hack it here until this is fixed.
-        if conversation.startswith("<|begin_of_text|>") and not output_sentence.startswith("<|begin_of_text|>"):
-            output_sentence = "<|begin_of_text|>" + output_sentence
-
         # Remove prefix.
         assert output_sentence.startswith(conversation)
         output_sentence = output_sentence.removeprefix(conversation)
 
         # Remove suffix.
-        eot = special_tokens['end_of_turn']
         done = False
         while not done:
             done = True
             for e in end_strings:
                 suffix = e
-                # The loop is very Llama-Instruct-specific, due to how "<|eot_id|>" is also the padding
-                # EOS token => it may be present multiple times.
                 while output_sentence.endswith(suffix):
                     output_sentence = output_sentence.removesuffix(suffix)
                     done = False
+        output_sentence = output_sentence.strip()
 
         print(f"TRIMMED OUTPUT:\n```{output_sentence}```")
 
