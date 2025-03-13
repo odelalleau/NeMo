@@ -102,7 +102,7 @@ class MegatronGenerate(Resource):
         for msg in input_list:
             if msg['role'] != 'system':
                 conversation_entry = {
-                    'from': msg['role'],  #.capitalize(),  # Capitalize 'user' and 'assistant'
+                    'from': msg['role'].capitalize(),  # Capitalize 'user' and 'assistant'
                     'value': msg['content'],
                     'label': None,
                 }
