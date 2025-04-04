@@ -196,7 +196,7 @@ class MegatronGenerate(Resource):
         )
         len_strip = len(special_tokens['end_of_turn'] + special_tokens['turn_start'])
         conversation = conversation[:-len_strip]
-        print(f"BEFORE:\n```{conversation}```")
+        #print(f"BEFORE:\n```{conversation}```")
 
         batching = data.get('max_tokens', 32) > 64
         if batching:
@@ -213,7 +213,7 @@ class MegatronGenerate(Resource):
             time.sleep(0.5)  # process one batch every 0.5s
         else:
             queryid = 0
-        end_strings = ['<|endoftext|>', "<|eom_id|>"]
+        end_strings = ['<|endoftext|>', "<|end_of_text|>"]
         for special_key in [
                 # Currently this is hardcoded for the Llama3 template, where only 'end_of_turn' matters.
                 # Ideally `end_strings` should be in the model config, because we can't know for sure
@@ -273,7 +273,7 @@ class MegatronGenerate(Resource):
             MegatronGenerate.tasks.task_done()
 
         output_sentence = output['sentences'][queryid]
-        print(f"FULL OUTPUT:\n```{output_sentence}```")
+        #print(f"FULL OUTPUT:\n```{output_sentence}```")
 
         # The "<|begin_of_text|>" token gets removed in the output -- this is probably a tokenizer issue,
         # but we hack it here until this is fixed.
@@ -297,7 +297,7 @@ class MegatronGenerate(Resource):
                     output_sentence = output_sentence.removesuffix(suffix)
                     done = False
 
-        print(f"TRIMMED OUTPUT:\n```{output_sentence}```")
+        #print(f"TRIMMED OUTPUT:\n```{output_sentence}```")
 
         tokens = output['tokens'][queryid]
         tokens = [t.decode('utf-8', errors='replace') if isinstance(t, bytes) else t for t in tokens]
