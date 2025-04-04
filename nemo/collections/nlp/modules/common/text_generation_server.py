@@ -195,8 +195,8 @@ class MegatronGenerate(Resource):
             nemo_source, special_tokens
         )
         len_strip = len(special_tokens['end_of_turn'] + special_tokens['turn_start'])
-        print(f"BEFORE:\n```{conversation}```")
         conversation = conversation[:-len_strip]
+        print(f"BEFORE:\n```{conversation}```")
 
         batching = data.get('max_tokens', 32) > 64
         if batching:
