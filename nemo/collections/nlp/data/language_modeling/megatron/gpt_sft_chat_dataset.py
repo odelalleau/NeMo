@@ -51,7 +51,9 @@ def _get_header_conversation_type_mask_role(source, special_tokens):
         if TYPE_INSTRUCTION[data_type] != '':
             conversation = conversation + '\n' + TYPE_INSTRUCTION[data_type]
     mask_role = source.get('mask', 'User')
-    header = f"{special_tokens['system_turn_start']}{SYSTEM_TOKEN}{END_NAME_SIGNAL}{conversation}{END_SIGNAL}"
+    system_token = source.get("system_token", SYSTEM_TOKEN)
+    header = f"{special_tokens['system_turn_start']}{system_token}{END_NAME_SIGNAL}{conversation}{END_SIGNAL}"
+    # logging.info(f"DBG HEADER:\n```{header}```")
     conversation = _add_speaker_and_signal(header, source['conversations'], mask_role, data_type, special_tokens)
     return header, conversation, data_type, mask_role
 
@@ -60,13 +62,14 @@ def get_prompt_template_example(special_tokens):
     source = {
         'system': '{system message}',
         'conversations': [
-            {'from': 'User', 'value': '{turn 1 user message}', 'label': None},
-            {'from': 'Assistant', 'value': '{turn 1 assistant message}', 'label': '{turn 1 assistant label}'},
-            {'from': 'User', 'value': '{turn 2 user message}', 'label': None},
-            {'from': 'Assistant', 'value': '{turn 2 assistant message}', 'label': '{turn 2 assistant label}'},
+            {'from': '{user role}', 'value': '{turn 1 user message}', 'label': None},
+            {'from': '{assistant role}', 'value': '{turn 1 assistant message}', 'label': '{turn 1 assistant label}'},
+            {'from': '{user role}', 'value': '{turn 2 user message}', 'label': None},
+            {'from': '{assistant role}', 'value': '{turn 2 assistant message}', 'label': '{turn 2 assistant label}'},
         ],
-        "mask": "User",
+        "mask": "{user role}",
         "type": "VALUE_TO_TEXT",
+        "system_token": '{system token}',
     }
     _, conversation, _, _ = _get_header_conversation_type_mask_role(source, special_tokens)
     return conversation
@@ -273,6 +276,7 @@ def preprocess(
         id1 = tokenizer.text_to_ids(PREFIX_STR + s["value"])
         id2 = tokenizer.text_to_ids(PREFIX_STR)
         tokenized_sentence = id1[len(id2) :]
+        # logging.info(f"CONV DBG: {tokenized_sentence[0:20]} ... {tokenized_sentence[-20:]}")
         ids.append(torch.tensor(tokenized_sentence))
         tokenized_lens.append(len(tokenized_sentence))
     speakers = [sentence["from"] for sentence in source['conversations']]
@@ -325,6 +329,8 @@ class GPTSFTChatDataset(GPTSFTDataset):
         id1 = self.tokenizer.text_to_ids(PREFIX_STR + self.special_tokens['turn_start'])
         id2 = self.tokenizer.text_to_ids(PREFIX_STR)
         self.num_turn_start_tokens = len(id1) - len(id2)
+
+        # logging.info(f"DATASET DBG:\n{self.special_tokens=}\n{self.label_start_tokens=}, {self.name_end_token_ids=}, {self.num_turn_start_tokens=}")
 
     def _process_example(self, example):
         """

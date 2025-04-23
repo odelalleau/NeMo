@@ -1296,6 +1296,9 @@ class MegatronGPTModel(MegatronBaseModel, TextGeneration):
                 'loss_mask': batch['loss_mask'],
             }
 
+            # if torch.distributed.get_rank() == 0:
+            #     logging.info(f"*****DEBUG OUTPUT*****\nTOKENS:\n{batch['tokens'][0].tolist()}\nPOSITION_IDS:\n{batch['position_ids'][0].tolist()}\nLABELS:\n{batch['labels'][0].tolist()}\nLOSS_MASK:\n{batch['loss_mask'][0].tolist()}\nATTENTION_MASK:\n{None if batch['attention_mask'] is None else batch['attention_mask'][0].tolist()}\n")
+
             if not self.mcore_gpt:
                 forward_args['checkpoint_activations_all_layers'] = checkpoint_activations_all_layers
                 if not self.use_loss_mask:
@@ -1592,7 +1595,7 @@ class MegatronGPTModel(MegatronBaseModel, TextGeneration):
         losses = output_tensor.float()
         loss_mask = loss_mask.view(-1).float()
         # TODO: add nemo version here
-        loss = torch.sum(losses.view(-1) * loss_mask) / num_valid_tokens_in_ub  # sequence level nll
+        loss = torch.sum(losses.view(-1) * loss_mask) / max(1, num_valid_tokens_in_ub)  # sequence level nll
         if parallel_state.get_context_parallel_world_size() > 1:
             torch.distributed.all_reduce(loss, group=parallel_state.get_context_parallel_group())
         return loss
