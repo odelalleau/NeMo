@@ -222,7 +222,7 @@ class MegatronGenerate(Resource):
                 #'turn_start',
                 #'label_start',
         ]:
-            if (tok := special_tokens[special_key]):
+            if (tok := special_tokens[special_key]) and tok not in end_strings:
                 end_strings.append(tok)
 
         # Return a response mimicking the OpenAI ChatCompletion API format
@@ -292,7 +292,8 @@ class MegatronGenerate(Resource):
             #   - If we stop on an end string that follows "end_of_turn", then we strip both "end_of_turn"
             #     and that end string (ex: "\n<extra_id_1>")
             suffix = e if e == eot else (eot + e)
-            output_sentence = output_sentence.removesuffix(suffix)
+            while output_sentence.endswith(suffix):
+                output_sentence = output_sentence.removesuffix(suffix)
 
         print(f"TRIMMED OUTPUT:\n```{output_sentence}```")
 
